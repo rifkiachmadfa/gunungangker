@@ -79,6 +79,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
 - Ibu Warung: "Kalau mau minum dan makan, bantu ibu kumpulkan ranting dulu."
 - Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
 - Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
+- **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain cukup MENDEKAT (server mendeteksi, radius `PickupRadius`) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting belum berupa item inventory, hanya progres quest.
 
 ### CP2 — Hutan Bambu
 `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
@@ -147,6 +148,11 @@ Workspace
 ```
 Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, BranchSpawnPoint, CraftingStation, TorchRequiredZone, TorchFailZone, TorchTimerZone, DiveZone, FishSpawnPoint, WindZone, SlipperyZone, FallZone, OfferingSpawnPoint, SummitGate). Wajib diaudit di Studio sebelum dipakai script.
 
+**Dependensi Workspace yang disebut pengguna (2026-10-18; BELUM diverifikasi di Studio, script belum memakainya kecuali NPC_Warung):**
+- `NPC_Warung` (Model NPC Ibu Warung, di Workspace; berisi ProximityPrompt untuk dialog). Dipakai `DialogueService` (dicari rekursif berdasarkan nama).
+- `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_1…` (Part titik spawn ranting; 20 titik).
+- `ServerStorage.QuestModels.Ranting` (template model ranting).
+
 ## 12. Tags & Attributes
 Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit terhadap Workspace aktual):
 | Tag / Attribute | Dipasang pada | Fungsi |
@@ -156,9 +162,23 @@ Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit ter
 | Attribute `ConsumeAmount` (number) | objek ber-tag | Override jumlah tambah untuk objek itu |
 | Attribute `ConsumeCooldown` (number, detik) | objek ber-tag | Override cooldown untuk objek itu |
 | Attribute `Hunger`, `Thirst` (number) | Player (ditulis server) | State survival personal; client read-only |
+| Attribute `ActiveResources_<SetId>` (string) | Player (ditulis server) | Daftar titik spawn aktif milik pemain, nama dipisah koma (mis. `ActiveResources_RantingCP1`). Dipakai client untuk menggambar resource lokal |
+| Attribute `Quest_<QuestId>_State` (string), `Quest_<QuestId>_Progress` (number) | Player (ditulis server) | State quest personal: None/Active/ReadyToTurnIn/Completed; untuk HUD/notifikasi nanti |
+| Runtime: `ReplicatedStorage.QuestAssets.<AssetName>` | Salinan template dari `ServerStorage` (dibuat server) | Agar client bisa menggambar resource; template asli tidak diubah |
+| Runtime (client): `Workspace.LocalResources` | Folder lokal client | Klon visual resource milik pemain lokal saja |
 
 ## 13. Remotes
-Belum ada. Didefinisikan di Phase 1 dan wajib dicatat di sini. Prinsip: client mengirim intent, server memvalidasi dan membalas state. Tiap Remote wajib rate-limit.
+Prinsip: client mengirim intent, server memvalidasi dan membalas state. Tiap Remote wajib rate-limit.
+Semua RemoteEvent dibuat server lewat `src/shared/Remotes.luau` di `ReplicatedStorage.Remotes` (runtime, bukan mapping Rojo). Client: `Remotes.Get(name)` menunggu server.
+
+| Remote | Arah | Argumen | Pemilik | Validasi / rate limit |
+|---|---|---|---|---|
+| `DialogueShow` | S→C | `payload { SessionId:number, Speaker:string, Text:string, Choices:{string}?, IsLast:boolean }` | DialogueService | — (dikirim hanya ke pemain pemilik sesi) |
+| `DialogueEnd` | S→C | `sessionId:number, reason:string` (`Finished`/`Cancelled`/`TooFar`/`Dead`/`NpcGone`/`Idle`/`Replaced`/`InvalidNode`/`Ended`) | DialogueService | — |
+| `DialogueRespond` | C→S | `sessionId:number, kind:"Advance"\|"Choose"\|"Cancel", index:number?` | DialogueService | tipe argumen, sessionId cocok, `RespondInterval` (Advance/Choose; Cancel bebas), indeks bulat 1..jumlah pilihan, jenis sesuai node, jarak/hidup |
+
+Remote Dialogue hanya membawa teks dan intent; progres quest tidak pernah dikirim client.
+Quest/Resource TIDAK memakai Remote: pengambilan dideteksi server (posisi pemain), state direplikasi lewat Player attribute (§12).
 
 ## 14. Ending
 - Menang: serahkan 5 sesajen di Summit Gate → Summit +1 (SummitCount di profil).
@@ -178,3 +198,4 @@ Belum ada. Didefinisikan di Phase 1 dan wajib dicatat di sini. Prinsip: client m
 - **Q3 Damage hantu:** berapa damage dengan jimat vs tanpa jimat, dan ambang knock? Belum ada angka di GDD.
 - **Q4 Konteks "HP bar bertambah":** instruksi menyebut makanan menambah "hp bar dan thirsty bar". Diasumsikan hunger bar dan thirst bar (GDD: Nasi +40 Hunger, Air +40 Thirst). Konfirmasi.
 - **Q5 Solo/multiplayer:** apakah jumlah pemain terpilih memengaruhi gameplay (jumlah resource, kesulitan hantu)? GDD tidak menyebut.
+- **Q6 Tool makanan/minuman (reward CP1):** instruksi terbaru: reward quest = Tool makanan dan minuman di Backpack; saat di-equip menambah lapar/haus (menggantikan "shop", lihat DEC-011). Belum jelas: berapa banyak tiap Tool menambah (GDD +40?), apakah sekali pakai (hilang) atau bisa dipakai berulang, dan berapa jumlah Tool yang diberikan.

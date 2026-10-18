@@ -1,16 +1,19 @@
 # CURRENT STATE
 
 Last updated: 2026-10-18
-Current phase: PHASE 2 (CP1 — bagian Hunger/Thirst dimulai)
-Branch: main (base commit e41f25c "starter fix"), perubahan Hunger/Thirst belum di-commit
+Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
+Branch: main (HEAD 7b847e8 "consumableservice"); perubahan Dialogue System belum di-commit (diserahkan sebagai patch)
 
 ## Working systems
 - Hunger/Thirst + HUD: TERIMPLEMENTASI, BELUM TERUJI di Studio (lihat CHANGELOG untuk tes yang sudah dilakukan).
 - Konsumsi makanan/minuman (tag Food/Drink): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh objek ber-tag di Studio.
+- Dialogue System (NPC_Warung): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh NPC_Warung + ProximityPrompt di Workspace.
+- Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
 
 ## Incomplete systems
+- Notification System (UI) dan Backpack/Tool: belum dimulai. Event quest sudah dipancarkan, UI-nya belum ada.
 - Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
-- Makan/minum (+40) menunggu Shop CP1; API server `SurvivalService.Add` sudah siap.
+- Makan/minum lewat Tool di Backpack (reward quest CP1, DEC-011) menunggu Quest/Backpack; API server `SurvivalService.Add` sudah siap.
 - Sistem gameplay lain belum dimulai.
 
 ## Known bugs
@@ -23,12 +26,15 @@ Branch: main (base commit e41f25c "starter fix"), perubahan Hunger/Thirst belum 
 - Roblox Studio MCP tidak tersedia pada audit ini; Workspace belum diinspeksi. Nama objek di GDD belum terverifikasi.
 
 ## Current task
+- Dialogue + Quest CP1: tes di Studio (lihat langkah di respons sesi 2026-10-18), 1 pemain lalu 2+ pemain.
 - Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
 
 ## Next task
+- Notification System (toast UI; memakai `QuestService.Subscribe`), lalu reward: Backpack/Tool makanan-minuman saat quest Completed (jawab Q6 dulu), lalu gate CP1.
 - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
 
 ## Dependencies / blockers
+0. Verifikasi di Studio: `NPC_Warung` (nama unik, punya ProximityPrompt), `Workspace.QuestObject.RantingBC_Spawner` berisi 20 BasePart `RantingSpawner_N`, `ServerStorage.QuestModels.Ranting`; jawab Q6.
 1. (Teratasi) `default.project.json` dan `src/` sudah ada.
 2. Dump hierarchy Workspace dari Studio (folder, Part, NPC, spawn point, Tag, Attribute) atau akses Studio MCP.
 3. Persetujuan DEC-003 (mekanisme gate per pemain).
