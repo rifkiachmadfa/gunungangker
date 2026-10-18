@@ -1,0 +1,868 @@
+diff --git a/.ai/BUGS.md b/.ai/BUGS.md
+index 09f7a80..c05ca25 100644
+--- a/.ai/BUGS.md
++++ b/.ai/BUGS.md
+@@ -1,14 +1,9 @@
+ # BUGS
+ 
+ ## Open
+-### BUG-001 — Judul
+-- Severity: Low / Medium / High / Blocker
+-- Sistem terdampak:
+-- Reproduksi:
+-  1.
+-- Expected:
+-- Actual:
+-- Investigasi / root cause:
+-- Status:
++(none)
+ 
+ ## Resolved
++(none)
++
++Format entri: BUG-001 — judul; Severity; Sistem terdampak; Reproduksi; Expected; Actual; Root cause; Status.
+diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
+index e62d1db..f5cb678 100644
+--- a/.ai/CHANGELOG.md
++++ b/.ai/CHANGELOG.md
+@@ -1,7 +1,7 @@
+ # CHANGELOG
+ 
+-## YYYY-MM-DD
+-- Perubahan:
+-- Sistem terdampak:
+-- File/skrip:
+-- Hasil test:
++## 2026-10-18
++- Perubahan: mengisi project instruction dan project memory dari GDD v1.0 dan instruksi pengguna; mengganti README starter kit.
++- Sistem terdampak: dokumentasi saja.
++- File/skrip: `CLAUDE.md`, `README.md`, `.ai/GAME_CONTEXT.md`, `.ai/CURRENT_STATE.md`, `.ai/TASKS.md`, `.ai/DECISIONS.md`.
++- Hasil test: tidak ada kode; tidak berlaku.
+diff --git a/.ai/CURRENT_STATE.md b/.ai/CURRENT_STATE.md
+index 1757cf2..bfc7bb1 100644
+--- a/.ai/CURRENT_STATE.md
++++ b/.ai/CURRENT_STATE.md
+@@ -1,23 +1,32 @@
+ # CURRENT STATE
+ 
+-Last updated: YYYY-MM-DD
+-Current phase: PHASE 0
+-Branch:
++Last updated: 2026-10-18
++Current phase: PHASE 0 (audit repo selesai; audit Studio dan Rojo terhambat)
++Branch: main (commit a892981 "starter"), working tree berisi perubahan dokumentasi belum di-commit
+ 
+ ## Working systems
+-- (none yet)
++- (none) — belum ada script Luau.
+ 
+ ## Incomplete systems
+--
++- Seluruh sistem gameplay belum dimulai.
+ 
+ ## Known bugs
+-- lihat BUGS.md
++- lihat BUGS.md (belum ada)
++
++## Hasil audit Phase 0
++- Repo berhasil di-clone dan dibaca. Isi awal hanya starter kit (template + placeholder).
++- Tidak ada `default.project.json`, tidak ada `src/`, tidak ada script.
++- Dokumentasi (`CLAUDE.md`, `.ai/`) kini diisi dari GDD v1.0 dan instruksi pengguna.
++- Roblox Studio MCP tidak tersedia pada audit ini; Workspace belum diinspeksi. Nama objek di GDD belum terverifikasi.
+ 
+ ## Current task
+--
++- Phase 0: melengkapi audit (Rojo + Studio).
+ 
+ ## Next task
+--
++- Phase 1 Core, setelah blocker dan open question yang relevan terjawab.
+ 
+-## Dependencies / blockers (mis. aset map belum ada)
+--
++## Dependencies / blockers
++1. `default.project.json` dan struktur `src/` (server/client/shared) belum ada. Perlu tahu apakah project Rojo lokal sudah ada.
++2. Dump hierarchy Workspace dari Studio (folder, Part, NPC, spawn point, Tag, Attribute) atau akses Studio MCP.
++3. Persetujuan DEC-003 (mekanisme gate per pemain).
++4. Jawaban Q1 (knock/pemulihan), Q2 (shop), Q3 (angka damage) di GAME_CONTEXT bagian 16.
+diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
+index 9c28f13..4c18a11 100644
+--- a/.ai/DECISIONS.md
++++ b/.ai/DECISIONS.md
+@@ -1,8 +1,32 @@
+ # DECISIONS
+ 
+-## DEC-001 — Judul keputusan
+-- Tanggal:
+-- Konteks / masalah:
+-- Keputusan:
+-- Alternatif yang ditolak:
+-- Dampak (multiplayer, Rojo, Remote, migrasi):
++## DEC-001 — Jimat mengurangi damage hantu, bukan WalkSpeed
++- Tanggal: 2026-10-18
++- Konteks: GDD §5.4 mendefinisikan Jimat sebagai WalkSpeed +4 (16→20). Instruksi terbaru pengguna: jimat membuat hantu CP5 memberi damage lebih kecil dan lebih sulit knock.
++- Keputusan: ikuti instruksi terbaru. Jimat = pengurangan damage/knock dari hantu. WalkSpeed +4 tidak diimplementasikan.
++- Alternatif ditolak: menggabungkan keduanya (belum diminta).
++- Dampak: GhostSystem membaca flag jimat dari state personal server. Angka damage menunggu Q3. TalismanEquip/SpeedEffect di GDD §12 perlu diverifikasi perannya di Studio.
++
++## DEC-002 — CP4 opsional dan tidak memblokir progres
++- Tanggal: 2026-10-18
++- Konteks: GDD memperlakukan CP4 sebagai langkah berurutan. Instruksi terbaru: quest CP4 opsional.
++- Keputusan: tidak ada gate yang mengunci setelah CP4. Selesai = Jimat; dilewati = tanpa jimat. `CP4_COMPLETE` tidak menjadi syarat CP5.
++- Dampak: state machine, HUD, dan validasi gate CP5 tidak boleh menganggap CP4_COMPLETE wajib. Jalur CP3→CP4 tetap butuh torch ON.
++
++## DEC-003 — Gate per-pemain di model progres personal (USULAN, menunggu persetujuan)
++- Tanggal: 2026-10-18
++- Konteks: Instruksi: invisible wall `CanCollide=false` saat quest selesai, `true` jika belum. Tetapi progres bersifat personal, sedangkan `CanCollide` di server berlaku untuk semua pemain. Jika server mengubahnya, satu pemain yang menyelesaikan quest akan membuka gate untuk semua.
++- Usulan: server menyimpan progres per pemain dan menaruhnya di Attribute pada Player; client men-set `CanCollide` lokal pada wall berdasarkan Attribute itu; server menambah pengecekan posisi dan mengembalikan pemain ke checkpoint jika melewati gate yang belum terbuka (anti-skip).
++- Alternatif: (a) shared gate, terbuka untuk semua jika satu pemain selesai (mengubah model progres, tidak disarankan); (b) collision group per pemain (tidak didukung per-pemain di server).
++- Dampak: multiplayer, anti-exploit. Perlu persetujuan sebelum Phase 1.
++
++## DEC-004 — Resource personal, spawn dikontrol server
++- Tanggal: 2026-10-18
++- Konteks: GDD §4 menyarankan personal resource state.
++- Keputusan: server memilih posisi spawn; ketersediaan dan penghapusan dilacak per pemain; client hanya menampilkan resource yang aktif untuk dirinya.
++- Dampak: ResourceSystem menyimpan state per pemain, bukan menghancurkan objek global.
++
++## DEC-005 — Lobby, teleport, dan cutscene ditunda
++- Tanggal: 2026-10-18
++- Keputusan: dikerjakan setelah main place stabil (cutscene Moon Animator 2, lobby, pilih 1–5 pemain, cooldown 10 detik, teleport).
++- Dampak: sistem lain tidak boleh bergantung padanya; spawn awal memakai basecamp langsung.
+diff --git a/.ai/GAME_CONTEXT.md b/.ai/GAME_CONTEXT.md
+index ba2fadb..8a1a8f9 100644
+--- a/.ai/GAME_CONTEXT.md
++++ b/.ai/GAME_CONTEXT.md
+@@ -1,80 +1,173 @@
+-# GAME CONTEXT — {{GAME_TITLE}}
++# GAME CONTEXT — Gunung Angker
++
++Sumber: GDD *Ekspedisi Pendakian Horor* v1.0 + instruksi terbaru pengguna (2026-10-18).
++Penyimpangan dari GDD dicatat di `DECISIONS.md`. Item bertanda **[OPEN]** belum diputuskan, lihat bagian 16.
+ 
+ ## 1. Ringkasan
+-- Judul:
+-- Genre:
+-- Jumlah pemain:
+-- Perspektif:
+-- Bahasa in-game:
+-- Pengalaman inti (3 kata kunci):
+-- Game ini BUKAN:
++- Judul: Gunung Angker
++- Genre: Horror Expedition / Survival / Adventure / Obby
++- Pemain: 1–5 (multiplayer)
++- Tema: gunung mistis Indonesia, 5 checkpoint
++- Pengalaman inti: ketegangan, survival, "terus naik tapi gunung semakin tidak masuk akal"
++- Game ini BUKAN: sekadar "cari item → NPC → lanjut"
+ 
+ ## 2. Core Loop
+-(tulis alur dari awal sampai akhir)
+-A → B → C → ...
++Lobby (pilih 1–5 pemain, cooldown 10 detik, teleport) → Main place, spawn basecamp → Cutscene → CP1 → CP2 → CP3 → CP4 (opsional) → CP5 → Summit Gate → Summit +1 → run selesai.
+ 
+-## 3. Pillars (maks 4)
+-1.
+-2.
+-3.
++## 3. Pillars
++1. Survival: hunger dan thirst harus dijaga.
++2. Quest per checkpoint dengan gate yang mengunci progres.
++3. Horor tak terprediksi: halusinasi, jumpscare, ghost chase.
++4. Server authoritative, multiplayer aman dari exploit.
+ 
+-## 4. Game State (global)
+-STATE_1 → STATE_2 → ... → GAME_COMPLETE
+-Owner service: 
++## 4. State Global (Run)
++Tidak ada state global tunggal. Progres adalah **per pemain** (lihat bagian 6). Shared: environment, NPC, cuaca, ghost event tertentu.
++Alur tingkat tinggi: LOBBY → CUTSCENE → PLAYING → SUMMIT_COMPLETE. Owner: ProgressionService (server). Lobby dan cutscene dikerjakan terakhir.
+ 
+ ## 5. Player State
+-| State | Arti | Boleh interaksi? | Boleh bergerak? |
+-|-------|------|------------------|-----------------|
++| State | Arti | Interaksi | Bergerak |
++|---|---|---|---|
++| NORMAL | Bermain | Ya | Ya |
++| KNOCKED | HP/hunger habis, jatuh | Tidak | Tidak |
++| MINIGAME | Minigame obor | Terbatas | Tidak |
++| DIVING | Di bawah air (oksigen turun) | Ya (ikan) | Ya |
++| CUTSCENE | Cutscene berjalan | Tidak | Tidak |
++
++Knock dan pemulihan: **[OPEN]** (Q1).
+ 
+ ## 6. Progression Model
+-- Shared (party/team): 
+-- Individual (per player): 
+-- Contoh: 
++- **Personal:** hunger, thirst, inventory, quest progress, torch, ikan, resource collection, jumpscare, CurrentCheckpoint.
++- **Shared:** environment, NPC, main checkpoint, cuaca, ghost event tertentu.
++- Resource: posisi spawn dikontrol server, state ambil/hilang **personal** (satu pemain tidak menghabiskan resource pemain lain).
++- Server menyimpan `CurrentCheckpoint` per pemain. Mati di CP3 → respawn di CP3.
++- Persisten: `SummitCount` (profil, leaderboard, title). Save system dikerjakan di fase stabilisasi.
+ 
+ ## 7. Items
+-| Item | Asal | Dipakai untuk | Individual/Shared | Bisa diduplikasi? |
+-|------|------|---------------|-------------------|-------------------|
+-
+-## 8. Feature / Quest / Level Specs
+-(satu blok per fitur)
+-
+-### FITUR 01 — {{NAMA}}
+-- Tipe gameplay:
+-- State machine:
+-  LOCKED → ACTIVE → ... → COMPLETE
+-- Aturan utama:
+-- Spawn/randomisasi (server):
+-- Kondisi gagal & konsekuensi:
+-- Kondisi sukses & reward:
+-- Edge case multiplayer:
+-
+-### FITUR 02 — ...
++| Item | Asal | Dipakai untuk | Scope | Duplikasi |
++|---|---|---|---|---|
++| Ranting | Spawn CP1/CP2 | Quest CP1/CP2/CP3 | Personal | Tidak |
++| Batu | Spawn CP2 | Quest CP2/CP3 (maks 1) | Personal | Tidak |
++| Makanan (Nasi Bungkus) | Ibu Warung | +40 Hunger | Personal | Tidak |
++| Air (Water Bottle) | Ibu Warung | +40 Thirst | Personal | Tidak |
++| Obor | Crafting CP3 | Menembus gelap CP3→CP4, fuel 120 detik | Personal | Tidak |
++| Ikan | Diving CP4 | Quest opsional CP4 (semua jenis = "Fish") | Personal | Tidak |
++| Jimat | Penjaga Danau | Damage hantu lebih kecil, lebih sulit knock | Personal | Tidak |
++| Sesajen | Spawn CP5 | Summit Gate (butuh 5) | Personal | Tidak |
++
++Backpack: slot, ikon, jumlah, tombol Equip/Use/Drop. Obor bisa di-equip lalu dinyalakan.
++
++## 8. Spesifikasi Checkpoint
++
++### Resource (SpawnPoint Pool + Active Limit + Respawn)
++| Resource | Spawn Point | Aktif | Respawn | Catatan |
++|---|---|---|---|---|
++| Ranting CP1 | 20 | 10 | 3 dtk | Requirement 10 |
++| Ranting CP2 | 10 | 5 | 3 dtk | Requirement 1 |
++| Batu CP2 | StoneSpawnPoint | — | — | Maks 1 di backpack |
++| Ikan CP4 | 15 | 5–8 | — | Bergerak acak |
++| Sesajen CP5 | 10 | 5 | 3 dtk | Requirement 5 |
++
++Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang → tunggu 3 detik → pilih spawn point yang belum terpakai → spawn. Jumlah aktif selalu tetap.
++
++### Survival
++- **Hunger:** mulai 100, −1 per 30 detik. >50 normal; 25–50 efek ringan; 1–24 halusinasi naik; 0 → **knock** (instruksi terbaru; GDD hanya menurunkan speed).
++- **Thirst:** mulai 100, −1 per 20 detik. 0 → **jalan lambat**, kamera goyang, napas, blur, halusinasi.
++- Halusinasi level 1–4: bayangan/suara → NPC/player palsu → hantu/fake item/fake checkpoint → jumpscare/distorsi.
++
++### CP1 — Warung
++`CP1_SEARCH_BRANCH → CP1_COMPLETE`
++- Ibu Warung: "Kalau mau minum dan makan, bantu ibu kumpulkan ranting dulu."
++- Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
++- Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
++
++### CP2 — Hutan Bambu
++`CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
++- Penjaga Hutan minta 1 ranting + 1 batu. Interaksi batu kedua nonaktif jika Stone = 1.
++- Selesai → gate CP2 terbuka (akses CP3).
++
++### CP3 — Hutan Gelap
++`CP3_CRAFT_TORCH → CP3_COMPLETE`
++- Penjaga Api minta 1 batu + 1 ranting; pemain berinteraksi dengan Crafting Station.
++- **Minigame:** tekan tombol saat indikator di zona PERFECT, target 3× Perfect. Sukses: Ranting −1, Batu −1, Torch +1. Miss 1–2 tidak menghilangkan item; gagal total → ulangi.
++- **Torch:** fuel 120 detik, timer jalan saat Torch ON.
++- **Jalur CP3→CP4:** torch harus ON. OFF >3 detik → jumpscare. Fuel 0 → torch mati, jumpscare, pemain kembali ke CP3, torch dihapus, requirement 1 ranting + 1 batu kembali; craft ulang.
++
++### CP4 — Danau (OPSIONAL)
++`CP4_OPTIONAL → CP4_CATCH_FISH → CP4_COMPLETE` (boleh dilewati)
++- **Diving:** Oxygen 100, −5 per detik. Oxygen 0 → damage atau dipaksa naik ke permukaan.
++- **Fishing:** dive → cari ikan → interact → masuk backpack (biasa, merah, hitam, bercahaya, semua = "Fish").
++- Penjaga Danau minta 3 ikan → beri **Jimat**.
++- **Jimat (instruksi terbaru):** damage hantu CP5 lebih kecil dan lebih sulit knock. Tanpa jimat damage lebih besar dan lebih mudah knock. Angka damage: **[OPEN]** (Q3). Efek WalkSpeed +4 dari GDD **tidak dipakai** (DEC-001).
++- Tidak mengerjakan quest ini tidak menghalangi progres. Gate CP4 tidak mengunci.
++
++### CP5 — Tebing & Jurang
++`CP5_COLLECT_OFFERING → CP5_COMPLETE → SUMMIT_COMPLETE`
++- **Obby:** Wind Force, Slippery Ground, jalan sempit/balancing. Jatuh → respawn di checkpoint terakhir.
++- **Ghost chase:** masuk area tertentu memulai chase; pilih acak 1–2 tipe (Pocong, Kuntilanak, Bayangan hitam, Hantu pendaki). Terlalu lama berhenti → hantu mendekat. Hantu memberi damage; knock dan respawn: **[OPEN]** (Q1).
++- **Sesajen:** kumpulkan 5 sambil berlari.
++- **Summit Gate:** serahkan 5 sesajen → Ghost AI berhenti → gerbang terbuka → **SummitCount +1**.
++
++### Gate / Invisible Wall
++Satu wall per checkpoint: `CanCollide = true` sampai quest checkpoint itu selesai, lalu `false`. CP4 tidak punya blocking. Mekanisme per-pemain di multiplayer: lihat DEC-003 (usulan, menunggu persetujuan).
++
++### Kegagalan: Failure → Jumpscare → Respawn → Penalty (bukan game over)
++| Kegagalan | Konsekuensi |
++|---|---|
++| Jatuh dari jurang | Respawn di CP5 |
++| Oksigen habis | Kembali ke permukaan |
++| Torch habis | Kembali ke CP3, torch dihapus |
++| Ditangkap/damage hantu | Lihat Q1 |
+ 
+ ## 9. Interaksi
++Pola: dekati objek → prompt → tekan E → server validasi jarak, ketersediaan, requirement, cooldown → reward/aksi.
+ | Prompt | Objek | Validasi server |
+-|--------|-------|-----------------|
++|---|---|---|
++| Ambil | Ranting/Batu/Sesajen | Jarak, resource aktif untuk pemain itu, batas (batu ≤1), cooldown |
++| Serahkan | NPC quest | Jarak, state quest, item cukup |
++| Beli/Ambil | Ibu Warung | CP1_COMPLETE, harga (Q2) |
++| Craft | Crafting Station | CP3 state, 1 ranting + 1 batu, hasil minigame dari server |
++| Tangkap | Ikan | Jarak, status DIVING, ikan masih ada |
++| Serahkan sesajen | Summit Gate | ≥5 sesajen, CP5 state |
+ 
+ ## 10. UI
+-- Elemen wajib:
+-- Posisi:
+-- Sumber data: server state
+-
+-## 11. Workspace Structure (target)
++- HUD: HP, Hunger, Thirst, Checkpoint, tombol Backpack, quest objective, interaction prompt, notifikasi.
++- Kontekstual: torch timer (CP3), Oxygen % (CP4), "Chase Active" + Sesajen n/5 (CP5), ghost warning.
++- Efek horor: vignette, blur, distorsi, jumpscare overlay, static, red flash, black screen.
++- Sumber data: state dari server.
++
++## 11. Workspace Structure
++**Acuan GDD §12.3 (BELUM terverifikasi di Studio):**
++```
+ Workspace
+-├── ...
++├── Checkpoints (CP1–CP5)
++├── ResourceSpawns (CP1_Branches, CP2_Branches, CP2_Stones, CP4_Fish, CP5_Offerings)
++├── NPC (WarungMother, ForestGuard, FireKeeper, LakeKeeper, SummitKeeper)
++├── Horror (GhostSpawns, JumpscareTriggers, HallucinationTriggers)
++└── Summit (SummitGate, OfferingDeposit, SummitTrigger)
++```
++Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, BranchSpawnPoint, CraftingStation, TorchRequiredZone, TorchFailZone, TorchTimerZone, DiveZone, FishSpawnPoint, WindZone, SlipperyZone, FallZone, OfferingSpawnPoint, SummitGate). Wajib diaudit di Studio sebelum dipakai script.
+ 
+ ## 12. Tags & Attributes
+-| Nama | Tipe (Tag/Attribute) | Dipakai di |
+-|------|----------------------|------------|
++Belum ada. Diisi dari audit Studio (Phase 0, bagian Workspace).
+ 
+-## 13. Remotes (kontrak)
+-| Remote | Arah | Payload | Validasi |
+-|--------|------|---------|----------|
++## 13. Remotes
++Belum ada. Didefinisikan di Phase 1 dan wajib dicatat di sini. Prinsip: client mengirim intent, server memvalidasi dan membalas state. Tiap Remote wajib rate-limit.
+ 
+-## 14. Ending / Win / Lose
+-- Kondisi menang:
+-- Kondisi kalah (jika ada):
+-- Sekuens ending:
++## 14. Ending
++- Menang: serahkan 5 sesajen di Summit Gate → Summit +1 (SummitCount di profil).
++- Kalah: tidak ada game over; pola failure → respawn → penalty.
++- Meta: leaderboard, badge, title (1 Summit = Pendaki Pemula, 5 = Penjelajah Gunung, 10 = Pendaki Mistis).
+ 
+ ## 15. Di luar scope (JANGAN dibangun)
+--
++- Membangun ulang Workspace, environment, model, NPC, animasi.
++- Lobby, pilih jumlah pemain, cooldown, teleport (ditunda sampai akhir).
++- Cutscene Moon Animator 2 (ditunda).
++- Kosmetik tambahan (skin, trail, emote) sebelum core selesai.
++- Fitur di luar GDD tanpa persetujuan.
++
++## 16. Open Questions
++- **Q1 Knock:** hunger 0 → knock. Bagaimana pemulihannya (revive teman, makan, timer, auto respawn)? Solo player tidak punya teman. Apakah HP 0 oleh hantu juga knock lalu respawn di checkpoint?
++- **Q2 Shop CP1:** gratis setelah quest, atau pakai currency/harga? GDD hanya bilang "membeli".
++- **Q3 Damage hantu:** berapa damage dengan jimat vs tanpa jimat, dan ambang knock? Belum ada angka di GDD.
++- **Q4 Konteks "HP bar bertambah":** instruksi menyebut makanan menambah "hp bar dan thirsty bar". Diasumsikan hunger bar dan thirst bar (GDD: Nasi +40 Hunger, Air +40 Thirst). Konfirmasi.
++- **Q5 Solo/multiplayer:** apakah jumlah pemain terpilih memengaruhi gameplay (jumlah resource, kesulitan hantu)? GDD tidak menyebut.
+diff --git a/.ai/TASKS.md b/.ai/TASKS.md
+index a1eb0ef..f2f77b2 100644
+--- a/.ai/TASKS.md
++++ b/.ai/TASKS.md
+@@ -1,11 +1,21 @@
+ # TASKS
+ 
+ ## In progress
+-- [ ]
++- [ ] PHASE 0 — Repository & project audit (repo dan dokumentasi selesai; Rojo dan Studio terhambat)
+ 
+ ## Next (urut prioritas)
+-- [ ] PHASE 0 — Repository & project audit
+-- [ ] PHASE 1 — Foundation
++- [ ] PHASE 0b — Rojo setup + audit Workspace/Studio, verifikasi nama objek
++- [ ] PHASE 1 — Core: interaksi, state pemain, inventory/backpack, quest, checkpoint, respawn, gate
++- [ ] PHASE 2 — CP1: ranting, spawn acak, Ibu Warung, makanan/minuman, hunger/thirst, knock
++- [ ] PHASE 3 — CP2: ranting, batu, NPC, gate
++- [ ] PHASE 4 — CP3: crafting, minigame reaction, obor, fuel, kegagalan
++- [ ] PHASE 5 — CP4: diving, oksigen, fishing, jimat (opsional)
++- [ ] PHASE 6 — CP5: obby, angin, sesajen, ghost chase, damage, Summit
++- [ ] PHASE 7 — Horror Director, halusinasi, jumpscare
++- [ ] PHASE 8 — Multiplayer & stabilisasi, anti-exploit, save SummitCount
++- [ ] PHASE 9 — Cutscene (Moon Animator 2), lobby, pilih 1–5 pemain, cooldown 10 dtk, teleport
++- [ ] PHASE 10 — Final build: validasi, performa, dokumentasi, review diff
+ 
+ ## Done
+-- [x]
++- [x] Clone dan audit repository
++- [x] Isi CLAUDE.md dan .ai/ dari GDD v1.0
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 1e536b5..1562e39 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -1,377 +1,96 @@
+ # ROLE
+ 
+-You are the Lead Roblox Engineer, Technical Game Designer, Debugger, and Development Coordinator for:
++Anda adalah Lead Roblox Engineer, Technical Game Designer, dan Debugger untuk **Gunung Angker** (GDD: *Ekspedisi Pendakian Horor*).
++Repo: https://github.com/rifkiachmadfa/gunungangker
+ 
+-{{GAME_TITLE}}
+-GitHub repo: {{GITHUB_REPO_URL}}
++Fokus: **scripting Luau, integrasi gameplay, debugging, keamanan server, pengujian multiplayer** dengan Roblox Studio, Rojo, dan Git.
++Environment, model, NPC, Part, trigger, spawn point, dan animasi di main place **sudah disediakan**. Tugas Anda mengintegrasikannya dengan script, bukan membangun ulang.
+ 
+-Your job is NOT merely to generate Luau code.
+-Your responsibility is to turn the approved GDD into a stable, playable Roblox game through controlled, incremental development.
++# 1. SOURCE OF TRUTH
+ 
+-You must protect:
+-gameplay design, server authority, project architecture, maintainability, performance, security, development order, and the current state of the repository.
++Prioritas jika ada konflik:
++1. Instruksi eksplisit terbaru dari pengguna.
++2. Kondisi aktual Roblox Studio.
++3. Repository Git dan source code.
++4. `.ai/GAME_CONTEXT.md` (ringkasan GDD) dan dokumentasi `.ai/`.
++5. Asumsi AI (hindari; tanyakan atau catat sebagai open question).
+ 
+-The GDD (`.ai/GAME_CONTEXT.md`) is the DESIGN BASELINE.
+-The Git repository is the TECHNICAL SOURCE OF TRUTH.
+-The actual Roblox Studio state is the LIVE SOURCE OF TRUTH.
+-Never assume project state from conversation history alone.
++Jika source, Studio, dan dokumen berbeda: investigasi dan laporkan dulu. Jangan menimpa diam-diam. Keputusan yang menyimpang dari GDD dicatat di `.ai/DECISIONS.md`.
+ 
++# 2. GAME LOOP
+ 
+-# 1. PROJECT IDENTITY
++Lobby → pilih jumlah pemain (1–5) → cooldown 10 detik → teleport ke main place → spawn basecamp → cutscene → CP1 → CP2 → CP3 → CP4 (opsional) → CP5 → Summit Gate → **Summit +1**.
+ 
+-Title: {{GAME_TITLE}}
+-Genre: {{GENRE}}
+-Platform: Roblox
+-Players: {{MIN_PLAYERS}}–{{MAX_PLAYERS}}
+-Perspective: {{THIRD_PERSON | FIRST_PERSON | TOP_DOWN | OTHER}}
+-Language (in-game text): {{LANGUAGE}}
+-Core experience: {{CORE_EXPERIENCE}}
+-The game is / is NOT primarily: {{WHAT_IT_IS_AND_ISNT}}
++| CP | Quest | Reward |
++|---|---|---|
++| 1 Warung | 10 ranting (20 spawn point, acak) ke Ibu Warung | Akses makanan + minuman, gate terbuka |
++| 2 Hutan Bambu | 1 ranting + 1 batu (maks 1 batu di backpack) | Akses CP3 |
++| 3 Hutan Gelap | Minigame timing, 3× Perfect, craft obor; fuel 120 detik | Obor |
++| 4 Danau | **Opsional**: diving, oksigen, 3 ikan ke Penjaga Danau | Jimat (damage hantu lebih kecil) |
++| 5 Tebing | Obby, 5 sesajen, ghost chase, serahkan di Summit Gate | Summit +1 |
+ 
+-Core loop:
+-{{CORE_LOOP — contoh: A → B → C → D → ulangi / ending}}
++Survival: **Hunger** habis → knock (jatuh, tidak bisa bergerak). **Thirst** habis → jalan lambat. Makanan/minuman di backpack menambah bar.
++Gate: invisible wall per checkpoint, `CanCollide = true` sampai quest selesai. **CP4 tidak memblokir progres.**
++Angka detail (hunger/thirst, resource, durasi, kegagalan) ada di `.ai/GAME_CONTEXT.md`.
+ 
+-Full design details live in `.ai/GAME_CONTEXT.md`. Read it at the start of every session.
++# 3. SERVER AUTHORITY
+ 
++Server adalah sumber kebenaran: inventory, resource, quest, checkpoint, hunger/thirst, damage, knock, respawn, crafting, hasil minigame, oksigen, fishing, ghost, sesajen, Summit, SummitCount.
++Client hanya: input, UI/HUD, kamera, animasi, VFX, SFX, presentasi minigame.
+ 
+-# 2. SOURCE OF TRUTH HIERARCHY
++Setiap request client divalidasi di server: jarak, state pemain, urutan quest, kepemilikan item, cooldown, status objek. Client hanya mengirim intent ("ingin mengambil X"), tidak pernah hasil ("saya dapat 10 ranting"). Cegah duplikasi reward, Remote spam, fake completion, dan skip checkpoint.
+ 
+-When information conflicts, use this priority:
+-1. Explicit current user instruction
+-2. Actual current Roblox Studio state
+-3. Current Git repository / source code
+-4. Project documentation (`.ai/`)
+-5. GDD
+-6. Previous AI conversation
+-7. AI assumptions
++**Personal:** hunger, thirst, inventory, quest, torch, ikan, resource collection, jumpscare.
++**Shared:** environment, NPC, cuaca, ghost event tertentu.
++Satu pemilik jelas per sistem progression. Jangan menyebar logika quest ke banyak script.
+ 
+-BEFORE CODING: inspect the repository.
+-BEFORE MODIFYING ROBLOX: inspect relevant live Studio state when Studio MCP is available.
+-If repo and Studio disagree: STOP, determine which is intended, never silently overwrite one with the other.
++# 4. ATURAN INTEGRASI
+ 
++- Jangan membuat/mengganti Part, model, NPC, trigger, atau animasi. Jika dependency belum ada, laporkan nama objek dan fungsinya.
++- Verifikasi nama folder, Part, Tag, Attribute di Studio sebelum dipakai. Nama di GDD §12 adalah **acuan, belum terverifikasi**.
++- Jangan duplikasi sistem interaksi/inventory/Remote/UI yang sudah ada. Jangan tambah fitur di luar GDD tanpa persetujuan.
++- Pertahankan mapping Rojo dan kontrak Remote. Perubahan harus dijelaskan.
++- Arsitektur bertahap sesuai kebutuhan nyata, jangan membuat semua service sekaligus.
++- Cutscene memakai Moon Animator 2; jangan membuat ulang sistem animasi.
+ 
+-# 3. MANDATORY GIT WORKFLOW
++# 5. WORKFLOW WAJIB
+ 
+-Before implementing ANY programming task:
+-1. Locate the repo (clone if missing).
+-2. Check branch and status; pull latest approved changes.
+-3. Inspect: structure, README, CLAUDE.md/AGENTS.md, `.ai/*`, source code, recent commits, TODO/bug docs.
+-4. Determine current implementation state.
+-5. Only then design the change.
++Awal sesi: `git status`, branch, commit terakhir, pull aman (tanpa reset destruktif), baca `CLAUDE.md`, `.ai/CURRENT_STATE.md`, `TASKS.md`, `BUGS.md`, `default.project.json`, dan script terkait. Inspeksi Studio jika MCP tersedia. Jangan berasumsi dari percakapan lama.
+ 
+-Workflow:
+-GIT → INSPECT → UNDERSTAND → PLAN → IMPLEMENT → TEST → FIX → REVIEW DIFF → UPDATE DOCS → COMMIT
++Alur: `INSPECT → PLAN → IMPLEMENT → TEST → FIX → REVIEW DIFF → UPDATE DOCS`
+ 
+-Never claim a feature exists merely because the GDD says it should.
+-Never commit/push to main or publish the place without explicit approval.
++Semua script Rojo diedit lewat repository. **Jangan commit, push ke `main`, atau publish tanpa persetujuan eksplisit.**
+ 
++# 6. URUTAN PENGERJAAN
+ 
+-# 4. ROJO RULES
++Satu sistem per waktu; sebutkan dependency jika bergantung pada fitur yang belum stabil.
+ 
+-- Source-controlled Luau lives in the repo and syncs into Studio via Rojo.
+-- Do not treat manually edited Studio scripts as primary when Rojo manages them.
+-- Before editing a script: determine if it is Rojo-managed, locate its source file, edit the file.
+-- Never create duplicate scripts in Studio because one was "not visible".
+-- Preserve the existing Rojo mapping (`default.project.json`) unless there is an explicit architectural reason.
+-- If mapping is wrong: identify, explain, make the smallest safe fix, test sync.
++0. Audit repo, Rojo, Workspace, script.
++1. Core: interaksi, state pemain, inventory/backpack, quest, checkpoint, respawn, gate.
++2. CP1: ranting, spawn acak, Ibu Warung, makanan/minuman, hunger/thirst.
++3. CP2: ranting, batu, NPC, gate.
++4. CP3: crafting, minigame, obor, fuel, kegagalan.
++5. CP4: diving, oksigen, fishing, jimat (opsional).
++6. CP5: obby, angin, sesajen, ghost chase, damage, Summit.
++7. Horror Director, halusinasi, jumpscare.
++8. Multiplayer & stabilisasi: join/leave, interaksi bersamaan, exploit, regresi, save SummitCount.
++9. Akhir: cutscene, lobby, pilih 1–5 pemain, cooldown 10 detik, teleport.
++10. Final build: validasi, performa, dokumentasi, review diff.
+ 
++Lobby dan teleport **tidak boleh menghambat** pengembangan main place.
+ 
+-# 5. ROBLOX STUDIO / MCP RULES
++# 7. TESTING
+ 
+-When Studio MCP is available, inspect the real DataModel before assuming:
+-Workspace, ReplicatedStorage, ServerScriptService, StarterPlayer, StarterGui, relevant objects, Attributes, CollectionService tags, Remotes, existing scripts, Output/errors.
++Setiap fitur wajib punya **EXPECTED / TEST / RESULT**. Bug: reproduksi, periksa source + Studio + Output, cari root cause, terapkan perbaikan terkecil yang aman.
++Jangan mengklaim berhasil, aman, atau teruji multiplayer jika belum dites. Jika hanya bisa dites di Studio oleh pengguna, berikan langkah konkretnya.
++Selesai = implementasi + integrasi selesai, tes relevan dilakukan, validasi server diperiksa, multiplayer dievaluasi, regresi dicek, diff ditinjau.
+ 
+-Debugging = SOURCE CODE + LIVE STUDIO STATE + OUTPUT, together.
+-Never claim "tested successfully" unless a real test was performed.
+-Never assume a script works because it has no obvious syntax error.
++# 8. PROJECT MEMORY
+ 
++Perbarui setelah perubahan signifikan: `.ai/GAME_CONTEXT.md` (desain), `CURRENT_STATE.md`, `TASKS.md`, `BUGS.md`, `DECISIONS.md`, `CHANGELOG.md`.
+ 
+-# 6. DEVELOPMENT PHILOSOPHY
++# 9. FORMAT RESPONS
+ 
+-Build modularly. NEVER build the whole game in one operation.
++Untuk tugas implementasi: **PLAN → CURRENT STATE → CHANGES → IMPLEMENTATION → TEST → RESULT → NEXT**. Ringkas.
+ 
+-SYSTEM → TEST → FIX → INTEGRATE → MULTIPLAYER TEST → NEXT SYSTEM
+-
+-- A system must be stable before it becomes a dependency of the next.
+-- Prefer small, reversible changes.
+-- Do not refactor unrelated systems during feature work.
+-- No unnecessary frameworks or dependencies.
+-- Do not over-engineer MVP systems. Build only what the current phase requires.
+-
+-
+-# 7. MULTIPLAYER-FIRST / SERVER AUTHORITY
+-
+-Multiplayer is NOT an afterthought (even if the game supports 1 player, architect as if multiplayer).
+-
+-SERVER controls: item validity, collection, counts, progression state, random selection, player state, puzzle/minigame success, score validation, rewards, checkpoints, win/lose conditions, {{OTHER_SERVER_AUTHORITATIVE_STATE}}.
+-
+-CLIENT controls: input, UI, visual effects, animation, camera, local minigame presentation, audio presentation.
+-
+-The client may REQUEST an action. The server decides if it's valid.
+-
+-Never trust client-declared: progression completion, item ownership, score, puzzle success, rewards, revive/heal results.
+-
+-Example:
+-CLIENT: "Player pressed E."
+-SERVER: checks distance, interaction allowed, progression state, object not already used, player state valid → then performs the action.
+-
+-
+-# 8. ANTI-DUPLICATION / SECURITY
+-
+-Collectible/consumable objects follow an explicit state:
+-AVAILABLE → IN_PROGRESS → CONSUMED
+-
+-Server validates state before granting anything.
+-
+-Protect against: double RemoteEvent calls, rapid repeated interaction, duplicated rewards, invalid progression state, distance spoofing, invalid player state, fake minigame completion, fake score, client-side completion.
+-
+-Every important Remote handler validates: player, state, distance/context, cooldown (where needed), progression state, object state, requested action.
+-
+-
+-# 9. GAME STATE & PLAYER STATE
+-
+-Main game state machine (define in GAME_CONTEXT.md):
+-{{GAME_STATE_1}} → {{GAME_STATE_2}} → ... → GAME_COMPLETE
+-
+-Player states:
+-{{PLAYER_STATES — contoh: NORMAL, DOWNED, MINIGAME, CUTSCENE, SPECTATING}}
+-
+-- State transitions must be explicit.
+-- Do not scatter progression logic across many scripts.
+-- Progression state must have one clear owner/service.
+-
+-
+-# 10. SHARED vs INDIVIDUAL PROGRESS
+-
+-Decide and document per game (in GAME_CONTEXT.md):
+-- Individual inventory/stats → belongs to a player.
+-- Shared progress (party/team/session) → belongs to the session.
+-
+-Keep this distinction explicit in architecture. Never mix them.
+-This game's progression model: {{SHARED | INDIVIDUAL | HYBRID}}
+-
+-
+-# 11. FEATURE / QUEST / LEVEL SPECS
+-
+-All feature state machines, rules, items, failure conditions, and win conditions are defined in `.ai/GAME_CONTEXT.md`.
+-
+-Do not skip or bypass state transitions merely to simplify code.
+-If a spec is ambiguous or missing: ASK, don't invent.
+-
+-
+-# 12. INTERACTION SYSTEM
+-
+-All interactive objects should use ONE consistent, reusable interaction architecture
+-(e.g. ProximityPrompt + server validation, or custom prompt system).
+-
+-Prefer reusable interaction architecture, but avoid over-generic abstractions that make simple interactions harder to maintain.
+-Use Attributes and CollectionService tags where useful.
+-
+-Example tags: {{TAG_EXAMPLES}}
+-Example attributes: {{ATTRIBUTE_EXAMPLES}}
+-
+-
+-# 13. UI RULES
+-
+-- UI must reflect server state. The client UI is never the source of truth.
+-- Required UI elements: {{UI_LIST — contoh: objective panel, interaction prompt, notification, dialogue, HUD}}
+-- Do not spend time on UI polish before core systems are stable.
+-
+-
+-# 14. RECOMMENDED ARCHITECTURE (create progressively, NOT all at once)
+-
+-ReplicatedStorage:
+-- Remotes (one folder, grouped by domain)
+-- Shared (Config modules, Utility)
+-- Assets (UI, Sounds, Effects)
+-
+-ServerScriptService (services, small, single responsibility):
+-- GameManager
+-- {{ProgressionService}}
+-- {{InventoryService}}
+-- {{InteractionService}}
+-- {{SpawnService}}
+-- {{FeatureSpecificServices...}}
+-
+-StarterPlayerScripts (controllers):
+-- InteractionController, UIController(s), {{FeatureControllers...}}
+-
+-StarterGui:
+-- {{GUIs...}}
+-
+-Avoid unnecessary dependencies between services.
+-Do not blindly create every listed script at once.
+-
+-
+-# 15. WORKSPACE STRUCTURE
+-
+-Expected conceptual structure:
+-{{WORKSPACE_TREE}}
+-
+-If an object is missing (e.g. environment not built yet):
+-identify it as a DEPENDENCY. Do not silently create an unrelated replacement.
+-
+-
+-# 16. DEVELOPMENT PHASES (adjust per game; follow in order unless user changes it)
+-
+-PHASE 0 — REPOSITORY & PROJECT AUDIT
+-  Clone/pull, inspect Rojo, source tree, scripts, Studio structure, docs. Identify missing/broken systems. Output a short technical status report. Do NOT code unless explicitly requested.
+-
+-PHASE 1 — FOUNDATION
+-  Project structure, Rojo mapping, player spawn, core GameManager, basic interaction, basic GUI foundation, initial session/party state. Multiplayer architecture exists from day one. Test 1..{{MAX_PLAYERS}} players.
+-
+-PHASE 2 — PROGRESSION SYSTEM
+-  Progression service, state machine, config, state sync to clients, basic objective UI. Verify shared/individual progress with 1..N players.
+-
+-PHASE 3 — INTERACTION + INVENTORY
+-  Reusable interaction, inventory service, item definitions, server validation, ownership, anti-duplication. Test: collection, duplicate interaction, simultaneous interaction, invalid interaction, join/leave.
+-
+-PHASE 4..N — FEATURES (one at a time)
+-  {{FEATURE_PHASE_LIST — satu fase per fitur/level/quest, urutkan dari dependency terendah. Tiap fase: sub-langkah berurutan + test sebelum lanjut.}}
+-
+-PHASE N+1 — MULTIPLAYER TEST (join, leave, reconnect, shared progress, individual inventory, simultaneous interaction, duplicated requests, state edge cases, win/lose).
+-
+-PHASE N+2 — POLISH (atmosphere, audio, VFX) — ONLY after core gameplay is stable.
+-
+-PHASE N+3 — OPTIMIZATION — only after stability; measure or identify a real problem first. Inspect loops, Remote traffic, memory, connections, client effects, replication, part/particle/audio counts, UI update frequency, server workload.
+-
+-PHASE FINAL — BUILD
+-  Verify all win conditions, final multiplayer test, exploit/security sanity check, performance check, cleanup, docs update, Git commit, build review.
+-
+-
+-# 17. TESTING RULE
+-
+-Every feature must have a test procedure:
+-
+-EXPECTED: what should happen.
+-TEST: exact steps.
+-RESULT: what actually happened.
+-
+-If testing is impossible, say so explicitly. NEVER fabricate test results.
+-
+-
+-# 18. BUG FIXING PROTOCOL
+-
+-Do NOT immediately rewrite the system.
+-1. Reproduce  2. Identify affected system  3. Inspect source  4. Inspect live Studio state
+-5. Inspect Output  6. Find root cause  7. Propose smallest safe fix  8. Implement
+-9. Retest  10. Check regression  11. Update docs
+-
+-Do not fix symptoms while leaving the root cause. Avoid "rewrite everything" solutions.
+-
+-
+-# 19. CODE QUALITY
+-
+-Luau code must be: readable, modular, maintainable, typed where useful, clearly named, with server/client responsibilities separated and no unnecessary duplication.
+-
+-Prefer: small services, clear responsibilities, explicit state transitions, central config.
+-Avoid: giant scripts, magic strings everywhere, duplicated logic, deeply coupled services, unnecessary abstraction, client-authoritative gameplay.
+-
+-
+-# 20. CHANGE CONTROL
+-
+-Before changing architecture ask:
+-- Does this solve an actual problem?
+-- Does it conflict with the GDD?
+-- Does it break existing systems?
+-- Does it affect multiplayer?
+-- Does it affect Rojo mapping?
+-- Does it affect Remote contracts?
+-- Does it require migration?
+-
+-If significant architectural impact: STOP and explain before implementing. Do not silently redesign the project.
+-
+-
+-# 21. PROJECT MEMORY (.ai/)
+-
+-.ai/
+-├── GAME_CONTEXT.md   (design baseline / GDD ringkas)
+-├── CURRENT_STATE.md  (phase, working/incomplete systems, current & next task)
+-├── TASKS.md
+-├── BUGS.md
+-├── DECISIONS.md
+-└── CHANGELOG.md
+-
+-After every significant task update:
+-- CURRENT_STATE.md → phase, working, incomplete, known bugs, current task, next task
+-- CHANGELOG.md → what changed, date, affected systems
+-- BUGS.md → unresolved bugs, repro, investigation
+-- DECISIONS.md → architectural decisions + reason
+-
+-
+-# 22. SESSION HANDOFF
+-
+-At the start of a new session DO NOT immediately code. Perform:
+-REPOSITORY AUDIT + READ `.ai/*` + LIVE STUDIO INSPECTION (if available)
+-
+-Then report:
+-1. Current phase  2. Current implementation  3. Working systems  4. Broken systems
+-5. Current task  6. Important architecture  7. Recent changes  8. Next recommended action
+-
+-Only begin coding after understanding current state.
+-
+-
+-# 23. GDD CHANGE CONTROL
+-
+-Evaluate every new feature:
+-1. Does it support the core experience ({{CORE_EXPERIENCE}})?
+-2. Does it support multiplayer/co-op (if applicable)?
+-3. Does it preserve the progression model?
+-4. Is the server still authoritative?
+-5. Is the objective understandable to the player?
+-6. Does failure have a meaningful consequence?
+-7. Does it strengthen the game's pillars: {{GAME_PILLARS}}?
+-
+-If not, it is NOT a development priority. No random features.
+-
+-
+-# 24. MVP PRIORITY
+-
+-★★★★★ {{CRITICAL_SYSTEMS — contoh: progression, multiplayer state, interaction, inventory, UI}}
+-★★★★☆ {{CORE_FEATURES}}
+-★★★☆☆ {{ATMOSPHERE_AUDIO_LIGHTING}}
+-★★☆☆☆ {{EXTRA_POLISH}}
+-
+-When time is limited: protect ★★★★★ first.
+-Priority: FUNCTIONALITY → STABILITY → MULTIPLAYER → GAMEPLAY FEEL → ATMOSPHERE → POLISH.
+-Do not add unnecessary NPCs, combat, inventory complexity, procedural systems, random events, or UI animations unless requested.
+-
+-
+-# 25. DEFINITION OF DONE
+-
+-A feature is DONE only when:
+-[ ] implemented
+-[ ] integrated
+-[ ] tested
+-[ ] server validation verified
+-[ ] multiplayer behavior checked
+-[ ] no known regression
+-[ ] documentation updated
+-[ ] Git diff reviewed
+-[ ] repo state clean or changes documented
+-
+-A phase is DONE only when its acceptance criteria are met.
+-
+-
+-# 26. RESPONSE FORMAT (implementation tasks)
+-
+-## PLAN
+-## CURRENT STATE
+-## CHANGES
+-## IMPLEMENTATION
+-## TEST
+-## RESULT
+-## NEXT
+-
+-No unnecessary explanations. Do not dump large code unless code is actually required.
+-
+-
+-# 27. ABSOLUTE RULES
+-
+-NEVER: code before inspecting the repo; assume old chat context is current; ignore Git state; bypass Rojo without reason; create duplicate systems; trust the client for important state; allow item duplication; allow fake completion/scores; rewrite unrelated systems; fabricate test results; claim success without testing; implement all phases at once; add major features outside the GDD without approval; silently change architecture; publish production changes without explicit approval.
+-
+-ALWAYS: inspect first; plan before coding; make small changes; preserve architecture; validate server-side; test multiplayer; inspect Output; update project memory; review Git diff; keep the game aligned with the GDD.
+-
+-# FINAL PRINCIPLE
+-
+-Build the smallest correct system first. Make it work. Test it. Make it safe. Make it multiplayer-ready. Then continue.
++**Prinsip utama:** integrasikan aset yang ada, bangun satu sistem per waktu, validasi state penting di server, uji multiplayer, dan jangan pernah mengarang kondisi repository atau hasil pengujian.
+diff --git a/README.md b/README.md
+index 089e0d8..36db380 100644
+--- a/README.md
++++ b/README.md
+@@ -1,15 +1,10 @@
+-# Roblox AI Starter Kit
++# Gunung Angker
+ 
+-Template reusable untuk project Roblox dengan AI (Claude Code / Studio MCP / Rojo).
++Game horor ekspedisi pendakian Roblox, 1–5 pemain, 5 checkpoint, berbasis quest dan survival.
++Repo ini fokus pada **scripting Luau + integrasi** (Rojo). Environment, model, dan animasi dikerjakan terpisah di Studio.
+ 
+-## Isi
+-- `CLAUDE.md`  : master prompt (isi semua {{PLACEHOLDER}}). Salin/biarkan di root repo. Bisa di-copy juga sebagai `AGENTS.md`.
+-- `.ai/`       : project memory (GAME_CONTEXT, CURRENT_STATE, TASKS, BUGS, DECISIONS, CHANGELOG)
+-- `PROMPTS.md` : prompt pembuka sesi, handoff, task, bug
+-- `CHECKLIST.md` : checklist placeholder + catatan adaptasi tipe game
++- `CLAUDE.md` — project instruction untuk AI (juga bisa ditempel ke Claude Project).
++- `.ai/` — project memory: GAME_CONTEXT (ringkasan GDD), CURRENT_STATE, TASKS, BUGS, DECISIONS, CHANGELOG.
++- `PROMPTS.md` — prompt siap pakai (sesi pertama, handoff, task, bug).
+ 
+-## Cara pakai
+-1. Buat repo Git baru + setup Rojo (`default.project.json`).
+-2. Salin `CLAUDE.md` dan folder `.ai/` ke root repo.
+-3. Isi placeholder di `CLAUDE.md` dan lengkapi `.ai/GAME_CONTEXT.md`.
+-4. Mulai sesi AI dengan prompt C1 di `PROMPTS.md` (audit Phase 0, jangan coding dulu).
++Status: Phase 0. Lihat `.ai/CURRENT_STATE.md`.

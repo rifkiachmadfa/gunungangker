@@ -1,15 +1,10 @@
-# Roblox AI Starter Kit
+# Gunung Angker
 
-Template reusable untuk project Roblox dengan AI (Claude Code / Studio MCP / Rojo).
+Game horor ekspedisi pendakian Roblox, 1–5 pemain, 5 checkpoint, berbasis quest dan survival.
+Repo ini fokus pada **scripting Luau + integrasi** (Rojo). Environment, model, dan animasi dikerjakan terpisah di Studio.
 
-## Isi
-- `CLAUDE.md`  : master prompt (isi semua {{PLACEHOLDER}}). Salin/biarkan di root repo. Bisa di-copy juga sebagai `AGENTS.md`.
-- `.ai/`       : project memory (GAME_CONTEXT, CURRENT_STATE, TASKS, BUGS, DECISIONS, CHANGELOG)
-- `PROMPTS.md` : prompt pembuka sesi, handoff, task, bug
-- `CHECKLIST.md` : checklist placeholder + catatan adaptasi tipe game
+- `CLAUDE.md` — project instruction untuk AI (juga bisa ditempel ke Claude Project).
+- `.ai/` — project memory: GAME_CONTEXT (ringkasan GDD), CURRENT_STATE, TASKS, BUGS, DECISIONS, CHANGELOG.
+- `PROMPTS.md` — prompt siap pakai (sesi pertama, handoff, task, bug).
 
-## Cara pakai
-1. Buat repo Git baru + setup Rojo (`default.project.json`).
-2. Salin `CLAUDE.md` dan folder `.ai/` ke root repo.
-3. Isi placeholder di `CLAUDE.md` dan lengkapi `.ai/GAME_CONTEXT.md`.
-4. Mulai sesi AI dengan prompt C1 di `PROMPTS.md` (audit Phase 0, jangan coding dulu).
+Status: Phase 0. Lihat `.ai/CURRENT_STATE.md`.
