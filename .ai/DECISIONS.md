@@ -85,3 +85,17 @@
   - Dialog mengikuti state quest lewat `RegisterEntryResolver` + variabel teks `{RantingCount}`/`{RantingTarget}` (`RegisterTextVariable`); Action `CP1.AcceptQuest`/`CP1.TurnIn` ditangani `QuestService`.
 - Dampak: tidak ada Remote baru dan tidak ada perubahan mapping Rojo. Bergantung pada nama Workspace/ServerStorage dari pengguna (belum terverifikasi): `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` (BasePart) dan `ServerStorage.QuestModels.Ranting` (Model atau BasePart). Jika salah satu tidak ditemukan, quest TIDAK dimulai dan warning dicetak. Quest belum persisten (hilang saat pemain keluar). Satu quest per NPC (resolver belum menggabung banyak quest).
 - Catatan: notifikasi sistem BELUM ada UI-nya; event "Progress"/"ReadyToTurnIn" sudah dipancarkan. `QuestConfig.Debug = true` mencetak log progres ke Output untuk pengujian.
+
+## DEC-013 — Inventory stackable: satu Tool per item, jumlah di server
+- Tanggal: 2026-10-18
+- Konteks: instruksi pengguna: ranting dipegang sebagai Tool di Backpack, tidak boleh memenuhi slot, harus bisa di-stack; template Tool ada di `QuestModels/Ranting(Tool)`. Sebelumnya ranting hanya progres quest (DEC-012), bukan item.
+- Keputusan: `InventoryService` menyimpan jumlah per pemain di server; Backpack hanya berisi SATU Tool per item (nama `<DisplayName> xN`, Attribute Tool `ItemId`/`Count`). Jumlah juga ditulis ke Attribute Player `Item_<id>` (pola DEC-007) untuk HUD/UI. Definisi item di `src/shared/ItemConfig.luau` (`TemplatePath` dari ServerStorage, `MaxStack`). Tool `CanBeDropped=false` agar stack tidak terduplikasi (tombol Drop GDD menunggu desain UI Backpack kustom). Template Tool BEDA dari `QuestModels.Ranting` (model dunia untuk ResourceRenderer); keduanya tidak diubah.
+- Inventory TIDAK hilang saat mati; Tool dibangun ulang dari data server setelah respawn (asumsi, Q8). `MaxStack` ranting 20 (Q7).
+- Alternatif ditolak: satu Tool per ranting (memenuhi hotbar, bertentangan dengan permintaan); jumlah dihitung dari jumlah Tool (client bisa memanipulasi, tidak server-authoritative).
+- Dampak: quest/NPC wajib memakai `InventoryService.GetCount/RemoveItem`, bukan menghitung Tool. Item lain (batu maks 1, sesajen, ikan, obor) cukup ditambah ke `ItemConfig.Items`.
+
+## DEC-014 — Resource masuk inventory lewat `ResourceConfig...ItemId`; serah-terima quest mengonsumsi item
+- Tanggal: 2026-10-18
+- Keputusan: set resource boleh punya `ItemId` (opsional). Saat terambil, `ResourceService` memanggil `InventoryService.AddItem` SEBELUM `OnCollected` (QuestService selalu melihat inventory yang sudah konsisten). Bila stack penuh atau template Tool hilang, resource TIDAK terambil: tetap di dunia dan progres quest tidak maju (dicoba lagi pada pemeriksaan berikutnya). `Activate` gagal lebih awal (quest tidak dimulai, warning) bila `ItemId` tidak ada di `ItemConfig` atau template Tool tidak ditemukan. `QuestService.TurnIn` mengonsumsi `Target` item dari inventory secara atomik; jika kurang, TurnIn ditolak dan state tidak berubah. Tanpa `ItemId`, perilaku lama tetap (kompatibel).
+- Alasan: DEC-004/012 sudah menyediakan resource personal; yang kurang hanya penghubung ke inventory. Tidak ada Remote baru, tidak ada sistem pickup paralel.
+- Risiko: dialog node "serah" tetap tampil walau `TurnIn` menolak (kasus tak normal: item kurang). Tidak ada notifikasi "stack penuh" sampai Notification System ada. Quest tetap menghitung progres sendiri (`Quest_<id>_Progress`); inventory dan progres bisa berbeda hanya jika pemain memakai/menyerahkan item lewat jalur lain (belum ada).

@@ -11,6 +11,8 @@
 	     Ranting hilang dan muncul di titik berbeda (diurus ResourceService).
 	  3. Progres = Target -> state = ReadyToTurnIn, sisa ranting dihapus, event "ReadyToTurnIn".
 	  4. Kembali ke Ibu Warung -> dialog node Entry.ReadyToTurnIn -> Action "CP1.TurnIn" -> Completed.
+	  Ranting yang terambil masuk inventory (Tool stack, ResourceService + InventoryService); saat
+	  TurnIn sebanyak Target dikonsumsi dari inventory. Bila tidak cukup, TurnIn ditolak.
 	  Reward (Tool makanan/minuman) BELUM ada; sistem Backpack nanti memakai Subscribe("Completed").
 
 	Replikasi ke client (read-only) lewat Player attribute, untuk Notification/HUD nanti:
@@ -38,6 +40,7 @@ local DialogueConfig = require(Shared:WaitForChild("DialogueConfig") :: ModuleSc
 
 local Services = script.Parent :: Instance
 local ResourceService = require(Services:WaitForChild("ResourceService") :: ModuleScript) :: any
+local InventoryService = require(Services:WaitForChild("InventoryService") :: ModuleScript) :: any
 local DialogueService = require(Services:WaitForChild("DialogueService") :: ModuleScript) :: any
 
 local QuestService = {}
@@ -119,10 +122,19 @@ function QuestService.Accept(player: Player, questId: string): boolean
 end
 
 function QuestService.TurnIn(player: Player, questId: string): boolean
+	local def = quests[questId]
 	local entry = getEntry(player, questId)
-	if entry == nil or entry.State ~= "ReadyToTurnIn" then
+	if def == nil or entry == nil or entry.State ~= "ReadyToTurnIn" then
 		return false
 	end
+
+	-- Serahkan item dari inventory (atomik). Cek dulu sebelum mengubah state.
+	local itemId = ResourceConfig.Sets[def.ResourceSet].ItemId
+	if itemId ~= nil and not InventoryService.RemoveItem(player, itemId, def.Target) then
+		warn(`[QuestService] {player.Name} tidak punya {def.Target} {itemId} untuk menyerahkan {questId} (punya {InventoryService.GetCount(player, itemId)}); TurnIn ditolak.`)
+		return false
+	end
+
 	entry.State = "Completed"
 	writeAttributes(player, questId, entry)
 	log(`{player.Name} menyelesaikan {questId}`)

@@ -12,6 +12,10 @@ ConsumableService.Start()
 local DialogueService = require(Services:WaitForChild("DialogueService") :: ModuleScript) :: any
 DialogueService.Start()
 
+-- Inventory harus start sebelum Resource/Quest (keduanya memanggil InventoryService).
+local InventoryService = require(Services:WaitForChild("InventoryService") :: ModuleScript) :: any
+InventoryService.Start()
+
 local ResourceService = require(Services:WaitForChild("ResourceService") :: ModuleScript) :: any
 ResourceService.Start()
 

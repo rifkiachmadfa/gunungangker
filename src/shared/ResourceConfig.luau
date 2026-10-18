@@ -19,6 +19,9 @@
 	PickupRadius      : jarak horizontal (stud) pemain ke titik agar resource terambil otomatis.
 	VerticalTolerance : selisih tinggi maksimum (stud) pemain terhadap titik.
 	PlacementOffset   : offset lokal model terhadap Part titik spawn (hanya untuk tampilan client).
+	ItemId            : (opsional) id item di ItemConfig yang masuk inventory saat resource terambil. Stack
+	                    penuh = resource TIDAK terambil (tetap di dunia, progres quest tidak maju).
+	                    Tanpa ItemId, resource hanya memicu OnCollected (perilaku lama).
 
 	CheckInterval : detik antar pemeriksaan pengambilan di server.
 	AssetsFolder  : nama folder runtime di ReplicatedStorage.
@@ -35,6 +38,7 @@ export type SetDef = {
 	PickupRadius: number,
 	VerticalTolerance: number,
 	PlacementOffset: Vector3,
+	ItemId: string?,
 }
 
 export type Config = {
@@ -60,6 +64,7 @@ local Config: Config = {
 			PickupRadius = 6,
 			VerticalTolerance = 8,
 			PlacementOffset = Vector3.new(0, 0, 0),
+			ItemId = "Ranting",
 		},
 	},
 }

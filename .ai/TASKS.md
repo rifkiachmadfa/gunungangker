@@ -1,6 +1,7 @@
 # TASKS
 
 ## In progress
+- [ ] PHASE 1 (sebagian) — Inventory stackable + ranting sebagai Tool: kode selesai & lulus uji mock; menunggu tes Studio (template Tool, respawn, serah-terima, 2 pemain)
 - [ ] PHASE 0 — Repository & project audit (repo dan dokumentasi selesai; Rojo dan Studio terhambat)
 
 ## Next (urut prioritas)

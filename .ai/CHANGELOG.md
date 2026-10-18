@@ -29,3 +29,9 @@
 - Sistem terdampak: Dialogue (tambah `RegisterTextVariable`; kontrak Remote tidak berubah), bootstrap server/client. Tidak ada Remote baru.
 - File/skrip: `src/shared/ResourceConfig.luau`, `src/shared/QuestConfig.luau`, `src/server/Services/ResourceService.luau`, `src/server/Services/QuestService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `src/server/Services/DialogueService.luau`, `src/shared/DialogueConfig.luau`, `src/server/init.server.luau`, `src/client/init.client.luau`, `.ai/*`.
 - Hasil test: keseimbangan blok/kurung 18 file lolos; konsistensi key config, node/variabel/action dialog, dan nama modul lolos. TIDAK dilakukan: type-check Luau, `rojo build`, simulasi logika, uji Studio/multiplayer (tooling tidak tersedia di sandbox). Belum teruji di runtime.
+
+## 2026-10-18 (6) — Ranting sebagai Tool stackable di Backpack
+- Perubahan: `InventoryService` + `ItemConfig` (satu Tool per item, jumlah di server, dibangun ulang saat respawn). `ResourceService` memberi item ke inventory saat resource terambil (opsi `ItemId`); stack penuh = resource tetap di dunia. `QuestService.TurnIn` mengonsumsi item. Bootstrap server memulai `InventoryService` lebih dulu.
+- Sistem terdampak: Resource, Quest, bootstrap server. Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
+- File/skrip: `src/shared/ItemConfig.luau` (baru), `src/server/Services/InventoryService.luau` (baru), `src/shared/ResourceConfig.luau`, `src/server/Services/ResourceService.luau`, `src/server/Services/QuestService.luau`, `src/server/init.server.luau`, `.ai/*`.
+- Hasil test: sintaks Luau OK, `rojo build` 7.7.1 OK, 50 kasus uji mock (modul asli Resource/Quest/Interaction/config; hanya DialogueService di-stub) lulus 40 kali berturut-turut, dan 15 mutasi sengaja semuanya tertangkap. Mock bukan Roblox sungguhan. TIDAK dilakukan: type-check strict Luau; uji Studio dengan Tool asli, respawn nyata, multiplayer.

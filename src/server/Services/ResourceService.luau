@@ -13,6 +13,8 @@
 	    Client menggambar model lokal dari attribute itu (ResourceRenderer).
 	  - Service ini TIDAK tahu soal quest; ia hanya memberi tahu lewat OnCollected. QuestService
 	    yang menghitung progres.
+	  - Bila set punya ItemId, item masuk inventory (InventoryService) SEBELUM OnCollected dipanggil.
+	    Stack penuh / template Tool hilang = resource tidak terambil dan tetap di dunia.
 
 	Template model: ServerStorage/<TemplatePath> disalin (klon) ke ReplicatedStorage/<AssetsFolder>/<AssetName>
 	saat Activate pertama; asli tidak diubah. Bila template atau titik spawn tidak ditemukan, Activate
@@ -34,8 +36,10 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("ResourceConfig") :: ModuleScript) :: any
+local ItemConfig = require(Shared:WaitForChild("ItemConfig") :: ModuleScript) :: any
 local ServerRoot = (script.Parent :: Instance).Parent :: Instance
 local Interaction = require(ServerRoot:WaitForChild("Util"):WaitForChild("Interaction") :: ModuleScript) :: any
+local InventoryService = require((script.Parent :: Instance):WaitForChild("InventoryService") :: ModuleScript) :: any
 
 local ResourceService = {}
 
@@ -191,6 +195,12 @@ local function spawnOne(player: Player, setId: string, def: any, state: SetState
 end
 
 local function collect(player: Player, setId: string, def: any, state: SetState, pointName: string)
+	-- Item masuk inventory dulu. Ditolak (stack penuh/template hilang) = resource tetap di dunia;
+	-- dicoba lagi pada pemeriksaan berikutnya. Tidak ada yield di sini, jadi tidak ada celah ganda.
+	if def.ItemId ~= nil and not InventoryService.AddItem(player, def.ItemId, 1) then
+		return
+	end
+
 	state.Active[pointName] = nil
 	state.Count -= 1
 	writeAttribute(player, def, state)
@@ -265,6 +275,14 @@ function ResourceService.Activate(player: Player, setId: string): (boolean, stri
 	end
 	if sets[setId] ~= nil then
 		return true, nil -- sudah aktif
+	end
+	if def.ItemId ~= nil then
+		if ItemConfig.Items[def.ItemId] == nil then
+			return false, `ItemId '{def.ItemId}' tidak ada di ItemConfig`
+		end
+		if not InventoryService.IsAvailable(def.ItemId) then
+			return false, "template Tool item tidak ditemukan"
+		end
 	end
 	if not ensureAsset(setId, def) then
 		return false, "template resource tidak ditemukan"

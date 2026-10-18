@@ -1,0 +1,554 @@
+diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
+index f7c4769..fe66190 100644
+--- a/.ai/CHANGELOG.md
++++ b/.ai/CHANGELOG.md
+@@ -29,3 +29,9 @@
+ - Sistem terdampak: Dialogue (tambah `RegisterTextVariable`; kontrak Remote tidak berubah), bootstrap server/client. Tidak ada Remote baru.
+ - File/skrip: `src/shared/ResourceConfig.luau`, `src/shared/QuestConfig.luau`, `src/server/Services/ResourceService.luau`, `src/server/Services/QuestService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `src/server/Services/DialogueService.luau`, `src/shared/DialogueConfig.luau`, `src/server/init.server.luau`, `src/client/init.client.luau`, `.ai/*`.
+ - Hasil test: keseimbangan blok/kurung 18 file lolos; konsistensi key config, node/variabel/action dialog, dan nama modul lolos. TIDAK dilakukan: type-check Luau, `rojo build`, simulasi logika, uji Studio/multiplayer (tooling tidak tersedia di sandbox). Belum teruji di runtime.
++
++## 2026-10-18 (6) — Ranting sebagai Tool stackable di Backpack
++- Perubahan: `InventoryService` + `ItemConfig` (satu Tool per item, jumlah di server, dibangun ulang saat respawn). `ResourceService` memberi item ke inventory saat resource terambil (opsi `ItemId`); stack penuh = resource tetap di dunia. `QuestService.TurnIn` mengonsumsi item. Bootstrap server memulai `InventoryService` lebih dulu.
++- Sistem terdampak: Resource, Quest, bootstrap server. Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
++- File/skrip: `src/shared/ItemConfig.luau` (baru), `src/server/Services/InventoryService.luau` (baru), `src/shared/ResourceConfig.luau`, `src/server/Services/ResourceService.luau`, `src/server/Services/QuestService.luau`, `src/server/init.server.luau`, `.ai/*`.
++- Hasil test: sintaks Luau OK, `rojo build` 7.7.1 OK, 50 kasus uji mock (modul asli Resource/Quest/Interaction/config; hanya DialogueService di-stub) lulus 40 kali berturut-turut, dan 15 mutasi sengaja semuanya tertangkap. Mock bukan Roblox sungguhan. TIDAK dilakukan: type-check strict Luau; uji Studio dengan Tool asli, respawn nyata, multiplayer.
+diff --git a/.ai/CURRENT_STATE.md b/.ai/CURRENT_STATE.md
+index 1dd203e..18d274c 100644
+--- a/.ai/CURRENT_STATE.md
++++ b/.ai/CURRENT_STATE.md
+@@ -2,16 +2,17 @@
+ 
+ Last updated: 2026-10-18
+ Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
+-Branch: main (HEAD 7b847e8 "consumableservice"); perubahan Dialogue System belum di-commit (diserahkan sebagai patch)
++Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) belum di-commit (diserahkan sebagai patch)
+ 
+ ## Working systems
+ - Hunger/Thirst + HUD: TERIMPLEMENTASI, BELUM TERUJI di Studio (lihat CHANGELOG untuk tes yang sudah dilakukan).
+ - Konsumsi makanan/minuman (tag Food/Drink): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh objek ber-tag di Studio.
+ - Dialogue System (NPC_Warung): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh NPC_Warung + ProximityPrompt di Workspace.
+ - Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
++- Inventory stackable (`InventoryService` + `ItemConfig`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Ranting yang terambil (`ResourceConfig...ItemId`) masuk sebagai SATU Tool `Ranting xN` di Backpack; `QuestService.TurnIn` mengonsumsi `Target` item. Butuh `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool, dengan `Handle`). Lulus 50 uji mock di luar Roblox (lihat CHANGELOG).
+ 
+ ## Incomplete systems
+-- Notification System (UI) dan Backpack/Tool: belum dimulai. Event quest sudah dipancarkan, UI-nya belum ada.
++- Notification System (UI) dan UI Backpack kustom: belum dimulai (Tool memakai Backpack bawaan Roblox). Belum ada notifikasi "Ranting penuh". Event quest sudah dipancarkan, UI-nya belum ada.
+ - Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
+ - Makan/minum lewat Tool di Backpack (reward quest CP1, DEC-011) menunggu Quest/Backpack; API server `SurvivalService.Add` sudah siap.
+ - Sistem gameplay lain belum dimulai.
+@@ -27,6 +28,7 @@ Branch: main (HEAD 7b847e8 "consumableservice"); perubahan Dialogue System belum
+ 
+ ## Current task
+ - Dialogue + Quest CP1: tes di Studio (lihat langkah di respons sesi 2026-10-18), 1 pemain lalu 2+ pemain.
++- Inventory ranting: tes di Studio (Tool terbentuk, satu slot, respawn, serah-terima mengonsumsi), 1 lalu 2+ pemain.
+ - Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
+ 
+ ## Next task
+@@ -34,7 +36,7 @@ Branch: main (HEAD 7b847e8 "consumableservice"); perubahan Dialogue System belum
+ - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
+ 
+ ## Dependencies / blockers
+-0. Verifikasi di Studio: `NPC_Warung` (nama unik, punya ProximityPrompt), `Workspace.QuestObject.RantingBC_Spawner` berisi 20 BasePart `RantingSpawner_N`, `ServerStorage.QuestModels.Ranting`; jawab Q6.
++0. Verifikasi di Studio: `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool + Handle; nama pasti), `NPC_Warung` (nama unik, punya ProximityPrompt), `Workspace.QuestObject.RantingBC_Spawner` berisi 20 BasePart `RantingSpawner_N`, `ServerStorage.QuestModels.Ranting`; jawab Q6 dan Q7.
+ 1. (Teratasi) `default.project.json` dan `src/` sudah ada.
+ 2. Dump hierarchy Workspace dari Studio (folder, Part, NPC, spawn point, Tag, Attribute) atau akses Studio MCP.
+ 3. Persetujuan DEC-003 (mekanisme gate per pemain).
+diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
+index 5fc99f8..4edf601 100644
+--- a/.ai/DECISIONS.md
++++ b/.ai/DECISIONS.md
+@@ -85,3 +85,17 @@
+   - Dialog mengikuti state quest lewat `RegisterEntryResolver` + variabel teks `{RantingCount}`/`{RantingTarget}` (`RegisterTextVariable`); Action `CP1.AcceptQuest`/`CP1.TurnIn` ditangani `QuestService`.
+ - Dampak: tidak ada Remote baru dan tidak ada perubahan mapping Rojo. Bergantung pada nama Workspace/ServerStorage dari pengguna (belum terverifikasi): `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` (BasePart) dan `ServerStorage.QuestModels.Ranting` (Model atau BasePart). Jika salah satu tidak ditemukan, quest TIDAK dimulai dan warning dicetak. Quest belum persisten (hilang saat pemain keluar). Satu quest per NPC (resolver belum menggabung banyak quest).
+ - Catatan: notifikasi sistem BELUM ada UI-nya; event "Progress"/"ReadyToTurnIn" sudah dipancarkan. `QuestConfig.Debug = true` mencetak log progres ke Output untuk pengujian.
++
++## DEC-013 — Inventory stackable: satu Tool per item, jumlah di server
++- Tanggal: 2026-10-18
++- Konteks: instruksi pengguna: ranting dipegang sebagai Tool di Backpack, tidak boleh memenuhi slot, harus bisa di-stack; template Tool ada di `QuestModels/Ranting(Tool)`. Sebelumnya ranting hanya progres quest (DEC-012), bukan item.
++- Keputusan: `InventoryService` menyimpan jumlah per pemain di server; Backpack hanya berisi SATU Tool per item (nama `<DisplayName> xN`, Attribute Tool `ItemId`/`Count`). Jumlah juga ditulis ke Attribute Player `Item_<id>` (pola DEC-007) untuk HUD/UI. Definisi item di `src/shared/ItemConfig.luau` (`TemplatePath` dari ServerStorage, `MaxStack`). Tool `CanBeDropped=false` agar stack tidak terduplikasi (tombol Drop GDD menunggu desain UI Backpack kustom). Template Tool BEDA dari `QuestModels.Ranting` (model dunia untuk ResourceRenderer); keduanya tidak diubah.
++- Inventory TIDAK hilang saat mati; Tool dibangun ulang dari data server setelah respawn (asumsi, Q8). `MaxStack` ranting 20 (Q7).
++- Alternatif ditolak: satu Tool per ranting (memenuhi hotbar, bertentangan dengan permintaan); jumlah dihitung dari jumlah Tool (client bisa memanipulasi, tidak server-authoritative).
++- Dampak: quest/NPC wajib memakai `InventoryService.GetCount/RemoveItem`, bukan menghitung Tool. Item lain (batu maks 1, sesajen, ikan, obor) cukup ditambah ke `ItemConfig.Items`.
++
++## DEC-014 — Resource masuk inventory lewat `ResourceConfig...ItemId`; serah-terima quest mengonsumsi item
++- Tanggal: 2026-10-18
++- Keputusan: set resource boleh punya `ItemId` (opsional). Saat terambil, `ResourceService` memanggil `InventoryService.AddItem` SEBELUM `OnCollected` (QuestService selalu melihat inventory yang sudah konsisten). Bila stack penuh atau template Tool hilang, resource TIDAK terambil: tetap di dunia dan progres quest tidak maju (dicoba lagi pada pemeriksaan berikutnya). `Activate` gagal lebih awal (quest tidak dimulai, warning) bila `ItemId` tidak ada di `ItemConfig` atau template Tool tidak ditemukan. `QuestService.TurnIn` mengonsumsi `Target` item dari inventory secara atomik; jika kurang, TurnIn ditolak dan state tidak berubah. Tanpa `ItemId`, perilaku lama tetap (kompatibel).
++- Alasan: DEC-004/012 sudah menyediakan resource personal; yang kurang hanya penghubung ke inventory. Tidak ada Remote baru, tidak ada sistem pickup paralel.
++- Risiko: dialog node "serah" tetap tampil walau `TurnIn` menolak (kasus tak normal: item kurang). Tidak ada notifikasi "stack penuh" sampai Notification System ada. Quest tetap menghitung progres sendiri (`Quest_<id>_Progress`); inventory dan progres bisa berbeda hanya jika pemain memakai/menyerahkan item lewat jalur lain (belum ada).
+diff --git a/.ai/GAME_CONTEXT.md b/.ai/GAME_CONTEXT.md
+index 0d65688..1f570f3 100644
+--- a/.ai/GAME_CONTEXT.md
++++ b/.ai/GAME_CONTEXT.md
+@@ -79,7 +79,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
+ - Ibu Warung: "Kalau mau minum dan makan, bantu ibu kumpulkan ranting dulu."
+ - Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
+ - Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
+-- **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain cukup MENDEKAT (server mendeteksi, radius `PickupRadius`) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting belum berupa item inventory, hanya progres quest.
++- **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain cukup MENDEKAT (server mendeteksi, radius `PickupRadius`) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting yang terambil masuk inventory sebagai SATU Tool stack `Ranting xN` di Backpack (DEC-013/014); saat diserahkan, 10 ranting dikonsumsi dari inventory.
+ 
+ ### CP2 — Hutan Bambu
+ `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
+@@ -152,6 +152,7 @@ Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, Branch
+ - `NPC_Warung` (Model NPC Ibu Warung, di Workspace; berisi ProximityPrompt untuk dialog). Dipakai `DialogueService` (dicari rekursif berdasarkan nama).
+ - `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_1…` (Part titik spawn ranting; 20 titik).
+ - `ServerStorage.QuestModels.Ranting` (template model ranting).
++- `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool ranting untuk Backpack; harus Tool dengan `Handle`). Nama dan lokasi dari pengguna, belum diverifikasi.
+ 
+ ## 12. Tags & Attributes
+ Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit terhadap Workspace aktual):
+@@ -164,6 +165,8 @@ Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit ter
+ | Attribute `Hunger`, `Thirst` (number) | Player (ditulis server) | State survival personal; client read-only |
+ | Attribute `ActiveResources_<SetId>` (string) | Player (ditulis server) | Daftar titik spawn aktif milik pemain, nama dipisah koma (mis. `ActiveResources_RantingCP1`). Dipakai client untuk menggambar resource lokal |
+ | Attribute `Quest_<QuestId>_State` (string), `Quest_<QuestId>_Progress` (number) | Player (ditulis server) | State quest personal: None/Active/ReadyToTurnIn/Completed; untuk HUD/notifikasi nanti |
++| Attribute `Item_<ItemId>` (number, mis. `Item_Ranting`) | Player (ditulis server) | Jumlah item stackable; client read-only (untuk HUD/Backpack kustom) |
++| Attribute `ItemId` (string), `Count` (number) | Tool di Backpack (ditulis server) | Identitas dan jumlah stack; jumlah asli ada di server, bukan di Tool |
+ | Runtime: `ReplicatedStorage.QuestAssets.<AssetName>` | Salinan template dari `ServerStorage` (dibuat server) | Agar client bisa menggambar resource; template asli tidak diubah |
+ | Runtime (client): `Workspace.LocalResources` | Folder lokal client | Klon visual resource milik pemain lokal saja |
+ 
+@@ -199,3 +202,5 @@ Quest/Resource TIDAK memakai Remote: pengambilan dideteksi server (posisi pemain
+ - **Q4 Konteks "HP bar bertambah":** instruksi menyebut makanan menambah "hp bar dan thirsty bar". Diasumsikan hunger bar dan thirst bar (GDD: Nasi +40 Hunger, Air +40 Thirst). Konfirmasi.
+ - **Q5 Solo/multiplayer:** apakah jumlah pemain terpilih memengaruhi gameplay (jumlah resource, kesulitan hantu)? GDD tidak menyebut.
+ - **Q6 Tool makanan/minuman (reward CP1):** instruksi terbaru: reward quest = Tool makanan dan minuman di Backpack; saat di-equip menambah lapar/haus (menggantikan "shop", lihat DEC-011). Belum jelas: berapa banyak tiap Tool menambah (GDD +40?), apakah sekali pakai (hilang) atau bisa dipakai berulang, dan berapa jumlah Tool yang diberikan.
++- **Q7 MaxStack ranting:** batas tumpukan ranting per pemain? Sementara 20 (CP1 butuh 10; batu maks 1 menurut GDD). Atur di `ItemConfig.Items.Ranting.MaxStack`.
++- **Q8 Inventory saat mati:** item tetap atau hilang saat pemain mati/respawn? Sementara tetap (DEC-013).
+diff --git a/.ai/TASKS.md b/.ai/TASKS.md
+index d79fbf7..1656b72 100644
+--- a/.ai/TASKS.md
++++ b/.ai/TASKS.md
+@@ -1,6 +1,7 @@
+ # TASKS
+ 
+ ## In progress
++- [ ] PHASE 1 (sebagian) — Inventory stackable + ranting sebagai Tool: kode selesai & lulus uji mock; menunggu tes Studio (template Tool, respawn, serah-terima, 2 pemain)
+ - [ ] PHASE 0 — Repository & project audit (repo dan dokumentasi selesai; Rojo dan Studio terhambat)
+ 
+ ## Next (urut prioritas)
+diff --git a/src/server/Services/InventoryService.luau b/src/server/Services/InventoryService.luau
+new file mode 100644
+index 0000000..16e47f3
+--- /dev/null
++++ b/src/server/Services/InventoryService.luau
+@@ -0,0 +1,239 @@
++--!strict
++--[[
++	InventoryService (SERVER) — pemilik tunggal inventory item yang bisa di-stack.
++
++	- Jumlah item disimpan di server (counts[player][itemId]). Tool di Backpack hanya presentasi:
++	  satu Tool per itemId, bernama "<DisplayName> xN", Attribute Tool "ItemId" dan "Count".
++	- Jumlah juga ditulis ke Attribute Player "Item_<itemId>" (read-only untuk client; untuk HUD/quest UI).
++	- Tool di-Clone dari ServerStorage/<TemplatePath> (ItemConfig). Template asli tidak diubah.
++	- Tool dibangun ulang dari data server setelah respawn. Inventory TIDAK hilang saat mati (DEC-013).
++	- Tool tidak bisa di-drop (CanBeDropped = false) agar stack tidak terduplikasi.
++
++	API server:
++		InventoryService.IsAvailable(itemId) -> boolean                          -- template Tool ada?
++		InventoryService.GetCount(player, itemId) -> number
++		InventoryService.AddItem(player, itemId, amount) -> (boolean, number)    -- (berhasil, jumlah masuk)
++		InventoryService.RemoveItem(player, itemId, amount) -> boolean           -- atomik: semua atau tidak sama sekali
++]]
++
++local Players = game:GetService("Players")
++local ReplicatedStorage = game:GetService("ReplicatedStorage")
++local ServerStorage = game:GetService("ServerStorage")
++
++local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemConfig") :: ModuleScript) :: any
++
++local ATTR_ITEM_ID = "ItemId"
++local ATTR_COUNT = "Count"
++local PLAYER_ATTR_PREFIX = "Item_"
++
++local InventoryService = {}
++
++local counts: { [Player]: { [string]: number } } = {}
++local templates: { [string]: Tool } = {}
++local warnedMissing: { [string]: boolean } = {}
++local started = false
++
++local function isWholePositive(n: any): boolean
++	return type(n) == "number" and n == n and n > 0 and n == math.floor(n) and n < math.huge
++end
++
++local function resolvePath(root: Instance, path: { string }, depth: number?): Instance?
++	local current: Instance? = root
++	for i = 1, depth or #path do
++		if current == nil then
++			return nil
++		end
++		current = current:FindFirstChild(path[i])
++	end
++	return current
++end
++
++-- Daftar Tool di folder induk template, untuk membantu mencari salah ketik nama.
++local function describeSiblings(path: { string }): string
++	local parent = resolvePath(ServerStorage, path, #path - 1)
++	if parent == nil then
++		return `folder ServerStorage.{table.concat(path, ".", 1, #path - 1)} tidak ditemukan`
++	end
++	local names: { string } = {}
++	for _, child in parent:GetChildren() do
++		if child:IsA("Tool") then
++			table.insert(names, child.Name)
++		end
++	end
++	return if #names == 0 then "tidak ada Tool di folder itu" else `Tool yang ada: {table.concat(names, ", ")}`
++end
++
++-- Cari template Tool. Di-cache setelah ketemu; bila tidak ketemu, warn sekali per item.
++local function resolveTemplate(itemId: string): Tool?
++	local cached = templates[itemId]
++	if cached ~= nil and cached.Parent ~= nil then
++		return cached
++	end
++	local def = Config.Items[itemId]
++	if def == nil then
++		return nil
++	end
++
++	local found = resolvePath(ServerStorage, def.TemplatePath)
++	if found ~= nil and found:IsA("Tool") then
++		if found.RequiresHandle and found:FindFirstChild("Handle") == nil then
++			warn(`[InventoryService] {found:GetFullName()} RequiresHandle=true tapi tidak punya Part "Handle"; Tool tidak bisa di-equip.`)
++		end
++		templates[itemId] = found
++		return found
++	end
++
++	if not warnedMissing[itemId] then
++		warnedMissing[itemId] = true
++		warn(`[InventoryService] Template Tool ServerStorage.{table.concat(def.TemplatePath, ".")} tidak ditemukan atau bukan Tool ({describeSiblings(def.TemplatePath)}). Item {itemId} tidak bisa ditambahkan.`)
++	end
++	return nil
++end
++
++-- Semua Tool milik itemId (Backpack + Character). Normalnya satu.
++local function findTools(player: Player, itemId: string): { Tool }
++	local found: { Tool } = {}
++	local containers: { Instance? } = { player:FindFirstChildOfClass("Backpack"), player.Character }
++	for _, container in containers do
++		if container ~= nil then
++			for _, child in container:GetChildren() do
++				if child:IsA("Tool") and child:GetAttribute(ATTR_ITEM_ID) == itemId then
++					table.insert(found, child)
++				end
++			end
++		end
++	end
++	return found
++end
++
++-- Samakan Tool dengan data server. Idempoten: aman dipanggil berulang.
++local function syncTool(player: Player, itemId: string)
++	local inv = counts[player]
++	local def = Config.Items[itemId]
++	if inv == nil or def == nil then
++		return
++	end
++	local count = inv[itemId] or 0
++	player:SetAttribute(PLAYER_ATTR_PREFIX .. itemId, count)
++
++	local tools = findTools(player, itemId)
++	-- Buang duplikat (jaga-jaga); sisakan satu.
++	for i = 2, #tools do
++		tools[i]:Destroy()
++	end
++	local tool: Tool? = tools[1]
++
++	if count <= 0 then
++		if tool ~= nil then
++			tool:Destroy()
++		end
++		return
++	end
++
++	if tool == nil then
++		local backpack = player:FindFirstChildOfClass("Backpack")
++		local template = resolveTemplate(itemId)
++		if backpack == nil or template == nil then
++			return -- dibangun ulang saat Backpack tersedia
++		end
++		local clone = template:Clone()
++		clone.CanBeDropped = false
++		clone:SetAttribute(ATTR_ITEM_ID, itemId)
++		clone.Parent = backpack
++		tool = clone
++	end
++
++	local label = `{def.DisplayName} x{count}`
++	local t = tool :: Tool
++	t:SetAttribute(ATTR_COUNT, count)
++	t.Name = label
++	t.ToolTip = label
++end
++
++local function syncAll(player: Player)
++	if counts[player] == nil then
++		return
++	end
++	for itemId in Config.Items do
++		syncTool(player, itemId)
++	end
++end
++
++function InventoryService.IsAvailable(itemId: string): boolean
++	return resolveTemplate(itemId) ~= nil
++end
++
++function InventoryService.GetCount(player: Player, itemId: string): number
++	local inv = counts[player]
++	return if inv ~= nil then (inv[itemId] or 0) else 0
++end
++
++function InventoryService.AddItem(player: Player, itemId: string, amount: number): (boolean, number)
++	local def = Config.Items[itemId]
++	local inv = counts[player]
++	if def == nil or inv == nil or not isWholePositive(amount) then
++		return false, 0
++	end
++	local room = def.MaxStack - (inv[itemId] or 0)
++	if room <= 0 then
++		return false, 0 -- stack penuh
++	end
++	-- Template wajib ada: tanpa Tool, pemain tidak melihat item dan resource akan "hilang".
++	if resolveTemplate(itemId) == nil then
++		return false, 0
++	end
++	local added = math.min(room, amount)
++	inv[itemId] = (inv[itemId] or 0) + added
++	syncTool(player, itemId)
++	return true, added
++end
++
++function InventoryService.RemoveItem(player: Player, itemId: string, amount: number): boolean
++	local inv = counts[player]
++	if Config.Items[itemId] == nil or inv == nil or not isWholePositive(amount) then
++		return false
++	end
++	local have = inv[itemId] or 0
++	if have < amount then
++		return false
++	end
++	inv[itemId] = have - amount
++	syncTool(player, itemId)
++	return true
++end
++
++local function onPlayerAdded(player: Player)
++	if counts[player] ~= nil then
++		return
++	end
++	counts[player] = {}
++	for itemId in Config.Items do
++		player:SetAttribute(PLAYER_ATTR_PREFIX .. itemId, 0)
++	end
++	-- Backpack bisa dibuat ulang saat respawn; bangun ulang Tool dari data server.
++	player.ChildAdded:Connect(function(child: Instance)
++		if child:IsA("Backpack") then
++			syncAll(player)
++		end
++	end)
++	player.CharacterAdded:Connect(function()
++		task.defer(syncAll, player)
++	end)
++end
++
++function InventoryService.Start()
++	if started then
++		return
++	end
++	started = true
++
++	Players.PlayerAdded:Connect(onPlayerAdded)
++	Players.PlayerRemoving:Connect(function(player: Player)
++		counts[player] = nil
++	end)
++	for _, player in Players:GetPlayers() do
++		onPlayerAdded(player)
++	end
++end
++
++return InventoryService
+diff --git a/src/server/Services/QuestService.luau b/src/server/Services/QuestService.luau
+index fc220ca..5d8b0b1 100644
+--- a/src/server/Services/QuestService.luau
++++ b/src/server/Services/QuestService.luau
+@@ -11,6 +11,8 @@
+ 	     Ranting hilang dan muncul di titik berbeda (diurus ResourceService).
+ 	  3. Progres = Target -> state = ReadyToTurnIn, sisa ranting dihapus, event "ReadyToTurnIn".
+ 	  4. Kembali ke Ibu Warung -> dialog node Entry.ReadyToTurnIn -> Action "CP1.TurnIn" -> Completed.
++	  Ranting yang terambil masuk inventory (Tool stack, ResourceService + InventoryService); saat
++	  TurnIn sebanyak Target dikonsumsi dari inventory. Bila tidak cukup, TurnIn ditolak.
+ 	  Reward (Tool makanan/minuman) BELUM ada; sistem Backpack nanti memakai Subscribe("Completed").
+ 
+ 	Replikasi ke client (read-only) lewat Player attribute, untuk Notification/HUD nanti:
+@@ -38,6 +40,7 @@ local DialogueConfig = require(Shared:WaitForChild("DialogueConfig") :: ModuleSc
+ 
+ local Services = script.Parent :: Instance
+ local ResourceService = require(Services:WaitForChild("ResourceService") :: ModuleScript) :: any
++local InventoryService = require(Services:WaitForChild("InventoryService") :: ModuleScript) :: any
+ local DialogueService = require(Services:WaitForChild("DialogueService") :: ModuleScript) :: any
+ 
+ local QuestService = {}
+@@ -119,10 +122,19 @@ function QuestService.Accept(player: Player, questId: string): boolean
+ end
+ 
+ function QuestService.TurnIn(player: Player, questId: string): boolean
++	local def = quests[questId]
+ 	local entry = getEntry(player, questId)
+-	if entry == nil or entry.State ~= "ReadyToTurnIn" then
++	if def == nil or entry == nil or entry.State ~= "ReadyToTurnIn" then
+ 		return false
+ 	end
++
++	-- Serahkan item dari inventory (atomik). Cek dulu sebelum mengubah state.
++	local itemId = ResourceConfig.Sets[def.ResourceSet].ItemId
++	if itemId ~= nil and not InventoryService.RemoveItem(player, itemId, def.Target) then
++		warn(`[QuestService] {player.Name} tidak punya {def.Target} {itemId} untuk menyerahkan {questId} (punya {InventoryService.GetCount(player, itemId)}); TurnIn ditolak.`)
++		return false
++	end
++
+ 	entry.State = "Completed"
+ 	writeAttributes(player, questId, entry)
+ 	log(`{player.Name} menyelesaikan {questId}`)
+diff --git a/src/server/Services/ResourceService.luau b/src/server/Services/ResourceService.luau
+index daea435..02a7e17 100644
+--- a/src/server/Services/ResourceService.luau
++++ b/src/server/Services/ResourceService.luau
+@@ -13,6 +13,8 @@
+ 	    Client menggambar model lokal dari attribute itu (ResourceRenderer).
+ 	  - Service ini TIDAK tahu soal quest; ia hanya memberi tahu lewat OnCollected. QuestService
+ 	    yang menghitung progres.
++	  - Bila set punya ItemId, item masuk inventory (InventoryService) SEBELUM OnCollected dipanggil.
++	    Stack penuh / template Tool hilang = resource tidak terambil dan tetap di dunia.
+ 
+ 	Template model: ServerStorage/<TemplatePath> disalin (klon) ke ReplicatedStorage/<AssetsFolder>/<AssetName>
+ 	saat Activate pertama; asli tidak diubah. Bila template atau titik spawn tidak ditemukan, Activate
+@@ -34,8 +36,10 @@ local Workspace = game:GetService("Workspace")
+ 
+ local Shared = ReplicatedStorage:WaitForChild("Shared")
+ local Config = require(Shared:WaitForChild("ResourceConfig") :: ModuleScript) :: any
++local ItemConfig = require(Shared:WaitForChild("ItemConfig") :: ModuleScript) :: any
+ local ServerRoot = (script.Parent :: Instance).Parent :: Instance
+ local Interaction = require(ServerRoot:WaitForChild("Util"):WaitForChild("Interaction") :: ModuleScript) :: any
++local InventoryService = require((script.Parent :: Instance):WaitForChild("InventoryService") :: ModuleScript) :: any
+ 
+ local ResourceService = {}
+ 
+@@ -191,6 +195,12 @@ local function spawnOne(player: Player, setId: string, def: any, state: SetState
+ end
+ 
+ local function collect(player: Player, setId: string, def: any, state: SetState, pointName: string)
++	-- Item masuk inventory dulu. Ditolak (stack penuh/template hilang) = resource tetap di dunia;
++	-- dicoba lagi pada pemeriksaan berikutnya. Tidak ada yield di sini, jadi tidak ada celah ganda.
++	if def.ItemId ~= nil and not InventoryService.AddItem(player, def.ItemId, 1) then
++		return
++	end
++
+ 	state.Active[pointName] = nil
+ 	state.Count -= 1
+ 	writeAttribute(player, def, state)
+@@ -266,6 +276,14 @@ function ResourceService.Activate(player: Player, setId: string): (boolean, stri
+ 	if sets[setId] ~= nil then
+ 		return true, nil -- sudah aktif
+ 	end
++	if def.ItemId ~= nil then
++		if ItemConfig.Items[def.ItemId] == nil then
++			return false, `ItemId '{def.ItemId}' tidak ada di ItemConfig`
++		end
++		if not InventoryService.IsAvailable(def.ItemId) then
++			return false, "template Tool item tidak ditemukan"
++		end
++	end
+ 	if not ensureAsset(setId, def) then
+ 		return false, "template resource tidak ditemukan"
+ 	end
+diff --git a/src/server/init.server.luau b/src/server/init.server.luau
+index f2dea65..3571d8d 100644
+--- a/src/server/init.server.luau
++++ b/src/server/init.server.luau
+@@ -12,6 +12,10 @@ ConsumableService.Start()
+ local DialogueService = require(Services:WaitForChild("DialogueService") :: ModuleScript) :: any
+ DialogueService.Start()
+ 
++-- Inventory harus start sebelum Resource/Quest (keduanya memanggil InventoryService).
++local InventoryService = require(Services:WaitForChild("InventoryService") :: ModuleScript) :: any
++InventoryService.Start()
++
+ local ResourceService = require(Services:WaitForChild("ResourceService") :: ModuleScript) :: any
+ ResourceService.Start()
+ 
+diff --git a/src/shared/ItemConfig.luau b/src/shared/ItemConfig.luau
+new file mode 100644
+index 0000000..070ccb4
+--- /dev/null
++++ b/src/shared/ItemConfig.luau
+@@ -0,0 +1,39 @@
++--!strict
++--[[
++	ItemConfig — definisi item yang bisa ditumpuk (stack) di Backpack (dibaca server DAN client).
++
++	Satu item = SATU Tool di Backpack, berapa pun jumlahnya. Jumlah asli disimpan server
++	(InventoryService); Tool hanya presentasi.
++
++	Items[itemId]:
++	  DisplayName  : nama di hotbar/Backpack (ditambah " xN").
++	  TemplatePath : path dari ServerStorage ke Tool template (di-Clone untuk pemain). Template asli
++	                 tidak diubah. Konvensi sama dengan ResourceConfig.TemplatePath.
++	  MaxStack     : jumlah maksimum per pemain. Penuh = resource tidak terambil (tetap di dunia).
++
++	Resource yang memberi item: isi ResourceConfig.Sets[setId].ItemId dengan itemId di sini.
++]]
++
++export type ItemDef = {
++	DisplayName: string,
++	TemplatePath: { string },
++	MaxStack: number,
++}
++
++export type Config = {
++	Items: { [string]: ItemDef },
++}
++
++local Config: Config = {
++	Items = {
++		Ranting = {
++			DisplayName = "Ranting",
++			-- Tool ranting (BEDA dari ServerStorage.QuestModels.Ranting yang dipakai ResourceRenderer).
++			-- Path dari pengguna, BELUM diverifikasi di Studio.
++			TemplatePath = { "QuestModels", "Ranting(Tool)" },
++			MaxStack = 20, -- GDD: CP1 butuh 10. Perlu konfirmasi (Q7).
++		},
++	},
++}
++
++return Config
+diff --git a/src/shared/ResourceConfig.luau b/src/shared/ResourceConfig.luau
+index d51ddf6..21b2156 100644
+--- a/src/shared/ResourceConfig.luau
++++ b/src/shared/ResourceConfig.luau
+@@ -19,6 +19,9 @@
+ 	PickupRadius      : jarak horizontal (stud) pemain ke titik agar resource terambil otomatis.
+ 	VerticalTolerance : selisih tinggi maksimum (stud) pemain terhadap titik.
+ 	PlacementOffset   : offset lokal model terhadap Part titik spawn (hanya untuk tampilan client).
++	ItemId            : (opsional) id item di ItemConfig yang masuk inventory saat resource terambil. Stack
++	                    penuh = resource TIDAK terambil (tetap di dunia, progres quest tidak maju).
++	                    Tanpa ItemId, resource hanya memicu OnCollected (perilaku lama).
+ 
+ 	CheckInterval : detik antar pemeriksaan pengambilan di server.
+ 	AssetsFolder  : nama folder runtime di ReplicatedStorage.
+@@ -35,6 +38,7 @@ export type SetDef = {
+ 	PickupRadius: number,
+ 	VerticalTolerance: number,
+ 	PlacementOffset: Vector3,
++	ItemId: string?,
+ }
+ 
+ export type Config = {
+@@ -60,6 +64,7 @@ local Config: Config = {
+ 			PickupRadius = 6,
+ 			VerticalTolerance = 8,
+ 			PlacementOffset = Vector3.new(0, 0, 0),
++			ItemId = "Ranting",
+ 		},
+ 	},
+ }

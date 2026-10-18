@@ -79,7 +79,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
 - Ibu Warung: "Kalau mau minum dan makan, bantu ibu kumpulkan ranting dulu."
 - Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
 - Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
-- **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain cukup MENDEKAT (server mendeteksi, radius `PickupRadius`) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting belum berupa item inventory, hanya progres quest.
+- **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain cukup MENDEKAT (server mendeteksi, radius `PickupRadius`) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting yang terambil masuk inventory sebagai SATU Tool stack `Ranting xN` di Backpack (DEC-013/014); saat diserahkan, 10 ranting dikonsumsi dari inventory.
 
 ### CP2 — Hutan Bambu
 `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
@@ -152,6 +152,7 @@ Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, Branch
 - `NPC_Warung` (Model NPC Ibu Warung, di Workspace; berisi ProximityPrompt untuk dialog). Dipakai `DialogueService` (dicari rekursif berdasarkan nama).
 - `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_1…` (Part titik spawn ranting; 20 titik).
 - `ServerStorage.QuestModels.Ranting` (template model ranting).
+- `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool ranting untuk Backpack; harus Tool dengan `Handle`). Nama dan lokasi dari pengguna, belum diverifikasi.
 
 ## 12. Tags & Attributes
 Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit terhadap Workspace aktual):
@@ -164,6 +165,8 @@ Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit ter
 | Attribute `Hunger`, `Thirst` (number) | Player (ditulis server) | State survival personal; client read-only |
 | Attribute `ActiveResources_<SetId>` (string) | Player (ditulis server) | Daftar titik spawn aktif milik pemain, nama dipisah koma (mis. `ActiveResources_RantingCP1`). Dipakai client untuk menggambar resource lokal |
 | Attribute `Quest_<QuestId>_State` (string), `Quest_<QuestId>_Progress` (number) | Player (ditulis server) | State quest personal: None/Active/ReadyToTurnIn/Completed; untuk HUD/notifikasi nanti |
+| Attribute `Item_<ItemId>` (number, mis. `Item_Ranting`) | Player (ditulis server) | Jumlah item stackable; client read-only (untuk HUD/Backpack kustom) |
+| Attribute `ItemId` (string), `Count` (number) | Tool di Backpack (ditulis server) | Identitas dan jumlah stack; jumlah asli ada di server, bukan di Tool |
 | Runtime: `ReplicatedStorage.QuestAssets.<AssetName>` | Salinan template dari `ServerStorage` (dibuat server) | Agar client bisa menggambar resource; template asli tidak diubah |
 | Runtime (client): `Workspace.LocalResources` | Folder lokal client | Klon visual resource milik pemain lokal saja |
 
@@ -199,3 +202,5 @@ Quest/Resource TIDAK memakai Remote: pengambilan dideteksi server (posisi pemain
 - **Q4 Konteks "HP bar bertambah":** instruksi menyebut makanan menambah "hp bar dan thirsty bar". Diasumsikan hunger bar dan thirst bar (GDD: Nasi +40 Hunger, Air +40 Thirst). Konfirmasi.
 - **Q5 Solo/multiplayer:** apakah jumlah pemain terpilih memengaruhi gameplay (jumlah resource, kesulitan hantu)? GDD tidak menyebut.
 - **Q6 Tool makanan/minuman (reward CP1):** instruksi terbaru: reward quest = Tool makanan dan minuman di Backpack; saat di-equip menambah lapar/haus (menggantikan "shop", lihat DEC-011). Belum jelas: berapa banyak tiap Tool menambah (GDD +40?), apakah sekali pakai (hilang) atau bisa dipakai berulang, dan berapa jumlah Tool yang diberikan.
+- **Q7 MaxStack ranting:** batas tumpukan ranting per pemain? Sementara 20 (CP1 butuh 10; batu maks 1 menurut GDD). Atur di `ItemConfig.Items.Ranting.MaxStack`.
+- **Q8 Inventory saat mati:** item tetap atau hilang saat pemain mati/respawn? Sementara tetap (DEC-013).
