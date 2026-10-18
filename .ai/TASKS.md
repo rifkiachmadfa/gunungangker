@@ -1,7 +1,7 @@
 # TASKS
 
 ## In progress
-- [ ] PHASE 2 — Hunger/Thirst + HUD: kode selesai, menunggu tes Studio/mobile/multiplayer oleh pengguna
+- [ ] PHASE 2 — Hunger/Thirst + HUD + konsumsi makanan/minuman: kode selesai, menunggu pemasangan tag Food/Drink dan tes Studio/mobile/multiplayer oleh pengguna
 - [ ] PHASE 0b — audit Workspace/Studio (masih terhambat: perlu dump hierarchy atau Studio MCP)
 
 ## Next (urut prioritas)

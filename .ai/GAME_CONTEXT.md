@@ -70,8 +70,8 @@ Backpack: slot, ikon, jumlah, tombol Equip/Use/Drop. Obor bisa di-equip lalu din
 Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang → tunggu 3 detik → pilih spawn point yang belum terpakai → spawn. Jumlah aktif selalu tetap.
 
 ### Survival
-- **Hunger:** mulai **50**, −1 per **5 detik** (instruksi terbaru, lihat DEC-006; angka diatur di `SurvivalConfig`; GDD awal: 100 dan −1/30 dtk). >50 normal; 25–50 efek ringan; 1–24 halusinasi naik; 0 → **knock** (instruksi terbaru; GDD hanya menurunkan speed).
-- **Thirst:** mulai **50**, −1 per **5 detik** (instruksi terbaru, lihat DEC-006; GDD awal: 100 dan −1/20 dtk). 0 → **jalan lambat**, kamera goyang, napas, blur, halusinasi.
+- **Hunger:** mulai **50**, −1 per **10 detik** (nilai aktual di `SurvivalConfig`, diubah pengguna dari 5 dtk di commit 347ef28; GDD awal: 100 dan −1/30 dtk; lihat DEC-006). >50 normal; 25–50 efek ringan; 1–24 halusinasi naik; 0 → **knock** (instruksi terbaru; GDD hanya menurunkan speed).
+- **Thirst:** mulai **50**, −1 per **10 detik** (nilai aktual di `SurvivalConfig`; GDD awal: 100 dan −1/20 dtk; lihat DEC-006). 0 → **jalan lambat**, kamera goyang, napas, blur, halusinasi.
 - Halusinasi level 1–4: bayangan/suara → NPC/player palsu → hantu/fake item/fake checkpoint → jumpscare/distorsi.
 
 ### CP1 — Warung
@@ -148,7 +148,14 @@ Workspace
 Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, BranchSpawnPoint, CraftingStation, TorchRequiredZone, TorchFailZone, TorchTimerZone, DiveZone, FishSpawnPoint, WindZone, SlipperyZone, FallZone, OfferingSpawnPoint, SummitGate). Wajib diaudit di Studio sebelum dipakai script.
 
 ## 12. Tags & Attributes
-Belum ada. Diisi dari audit Studio (Phase 0, bagian Workspace).
+Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit terhadap Workspace aktual):
+| Tag / Attribute | Dipasang pada | Fungsi |
+|---|---|---|
+| Tag `Food` | Model/Part makanan | Interaksi menambah Hunger (config: `SurvivalConfig.Consumables.Types.Food`) |
+| Tag `Drink` | Model/Part minuman | Interaksi menambah Thirst (`...Types.Drink`) |
+| Attribute `ConsumeAmount` (number) | objek ber-tag | Override jumlah tambah untuk objek itu |
+| Attribute `ConsumeCooldown` (number, detik) | objek ber-tag | Override cooldown untuk objek itu |
+| Attribute `Hunger`, `Thirst` (number) | Player (ditulis server) | State survival personal; client read-only |
 
 ## 13. Remotes
 Belum ada. Didefinisikan di Phase 1 dan wajib dicatat di sini. Prinsip: client mengirim intent, server memvalidasi dan membalas state. Tiap Remote wajib rate-limit.

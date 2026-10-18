@@ -34,7 +34,7 @@
 ## DEC-006 — Parameter Hunger/Thirst mengikuti instruksi terbaru, lewat config
 - Tanggal: 2026-10-18
 - Konteks: GDD: mulai 100, Hunger −1/30 dtk, Thirst −1/20 dtk. Instruksi terbaru: mulai 50, turun 1 per 5 detik, dan harus mudah diatur.
-- Keputusan: semua angka berada di `src/shared/SurvivalConfig.luau` per stat (Max, Start, DecayAmount, DecayInterval). Nilai awal 50, interval 5 dtk untuk keduanya. `DecayInterval <= 0` mematikan decay stat itu.
+- Keputusan: semua angka berada di `src/shared/SurvivalConfig.luau` per stat (Max, Start, DecayAmount, DecayInterval). Nilai awal 50; interval awal 5 dtk lalu diubah pengguna menjadi 10 dtk (commit 347ef28), untuk keduanya. `DecayInterval <= 0` mematikan decay stat itu.
 - Dampak: GDD §Survival diberi anotasi. Efek di 0 (knock/slow) TIDAK diimplementasikan; menunggu Q1. Decay dijeda saat pemain tidak punya karakter hidup (asumsi; belum ada player state formal). Nilai tidak di-reset saat respawn karena disimpan di Player, bukan karakter (asumsi, perlu konfirmasi).
 
 ## DEC-007 — State survival sebagai Attribute di Player, HUD dibuat lewat kode
@@ -44,3 +44,11 @@
 - HUD: pojok kiri bawah. Pada perangkat touch dinaikkan 150 px karena thumbstick bawaan Roblox berada di kiri bawah.
 - Dampak: tidak ada perubahan mapping Rojo. HUD survival lain (HP, checkpoint, dll.) nanti dapat memakai pola yang sama.
 
+## DEC-008 — Makanan/minuman di dunia: tag + ProximityPrompt, +1% dengan cooldown 5 dtk (config)
+- Tanggal: 2026-10-18
+- Konteks: instruksi terbaru: berinteraksi dengan makanan/minuman menambah 1% lapar/haus, cooldown sekitar 5 detik, bisa diatur. Nama objek di Workspace belum terverifikasi (Studio tidak bisa diinspeksi), dan GDD §12 belum punya tag. Ini terpisah dari Shop CP1 (+40, lewat Ibu Warung) yang tetap pada rencana awal.
+- Keputusan: `ConsumableService` mengikat semua objek ber-CollectionService tag `Food`/`Drink`. Memakai ProximityPrompt yang sudah ada di objek; bila tidak ada, server membuatnya (tanpa membuat Part/aset). Amount=1 dan Cooldown=5 per jenis di `SurvivalConfig.Consumables`; override per objek via Attribute `ConsumeAmount`/`ConsumeCooldown`.
+- Cooldown: per pemain. `CooldownScope = "Object"` (default, per objek) atau `"Player"` (per jenis Food/Drink). Default "Object" mengikuti pembacaan literal; risikonya satu pemain bisa berpindah antar objek untuk menambah lebih cepat. Ubah ke "Player" bila tidak diinginkan.
+- Aturan: stat sudah penuh = tidak ada efek dan cooldown tidak terpakai. Objek tidak dihapus setelah dipakai.
+- Validasi server: karakter hidup, tag masih terpasang, jarak (MaxActivationDistance prompt + `DistanceTolerance`), cooldown, stat belum penuh, nilai Attribute divalidasi (tidak valid = pakai default).
+- Dampak: tidak ada Remote baru, tidak ada perubahan mapping Rojo. Pemasangan tag di Studio dilakukan manual oleh pengguna.

@@ -1,0 +1,450 @@
+diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
+index ddab82e..1bed494 100644
+--- a/.ai/CHANGELOG.md
++++ b/.ai/CHANGELOG.md
+@@ -12,3 +12,8 @@
+ - File/skrip: `src/shared/SurvivalConfig.luau`, `src/server/Services/SurvivalService.luau`, `src/server/init.server.luau`, `src/client/UI/SurvivalHud.luau`, `src/client/init.client.luau`, `.ai/*`.
+ - Hasil test: sintaks Luau OK, `rojo build` OK (mapping sesuai), logika decay lolos 15 uji simulasi (stub, di luar Roblox). Belum diuji di Studio, mobile, maupun multiplayer.
+ 
++## 2026-10-18 (3) — Makanan & minuman menambah Hunger/Thirst
++- Perubahan: `ConsumableService` (tag Food/Drink, ProximityPrompt, +1% per interaksi, cooldown 5 dtk), config konsumsi di `SurvivalConfig`.
++- Sistem terdampak: Survival (ditambah), bootstrap server.
++- File/skrip: `src/server/Services/ConsumableService.luau`, `src/shared/SurvivalConfig.luau`, `src/server/init.server.luau`, `.ai/*`.
++- Hasil test: sintaks Luau OK, `rojo build` OK, 28 kasus uji simulasi (stub) lolos. Belum diuji di Studio, dengan objek asli, maupun multiplayer.
+diff --git a/.ai/CURRENT_STATE.md b/.ai/CURRENT_STATE.md
+index f55c326..1b9daa2 100644
+--- a/.ai/CURRENT_STATE.md
++++ b/.ai/CURRENT_STATE.md
+@@ -6,6 +6,7 @@ Branch: main (base commit e41f25c "starter fix"), perubahan Hunger/Thirst belum
+ 
+ ## Working systems
+ - Hunger/Thirst + HUD: TERIMPLEMENTASI, BELUM TERUJI di Studio (lihat CHANGELOG untuk tes yang sudah dilakukan).
++- Konsumsi makanan/minuman (tag Food/Drink): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh objek ber-tag di Studio.
+ 
+ ## Incomplete systems
+ - Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
+@@ -22,7 +23,7 @@ Branch: main (base commit e41f25c "starter fix"), perubahan Hunger/Thirst belum
+ - Roblox Studio MCP tidak tersedia pada audit ini; Workspace belum diinspeksi. Nama objek di GDD belum terverifikasi.
+ 
+ ## Current task
+-- Phase 2: verifikasi Hunger/Thirst di Studio (1 pemain, mobile emulator, 2+ pemain).
++- Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
+ 
+ ## Next task
+ - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
+diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
+index 287fd10..f3cd3a2 100644
+--- a/.ai/DECISIONS.md
++++ b/.ai/DECISIONS.md
+@@ -34,7 +34,7 @@
+ ## DEC-006 — Parameter Hunger/Thirst mengikuti instruksi terbaru, lewat config
+ - Tanggal: 2026-10-18
+ - Konteks: GDD: mulai 100, Hunger −1/30 dtk, Thirst −1/20 dtk. Instruksi terbaru: mulai 50, turun 1 per 5 detik, dan harus mudah diatur.
+-- Keputusan: semua angka berada di `src/shared/SurvivalConfig.luau` per stat (Max, Start, DecayAmount, DecayInterval). Nilai awal 50, interval 5 dtk untuk keduanya. `DecayInterval <= 0` mematikan decay stat itu.
++- Keputusan: semua angka berada di `src/shared/SurvivalConfig.luau` per stat (Max, Start, DecayAmount, DecayInterval). Nilai awal 50; interval awal 5 dtk lalu diubah pengguna menjadi 10 dtk (commit 347ef28), untuk keduanya. `DecayInterval <= 0` mematikan decay stat itu.
+ - Dampak: GDD §Survival diberi anotasi. Efek di 0 (knock/slow) TIDAK diimplementasikan; menunggu Q1. Decay dijeda saat pemain tidak punya karakter hidup (asumsi; belum ada player state formal). Nilai tidak di-reset saat respawn karena disimpan di Player, bukan karakter (asumsi, perlu konfirmasi).
+ 
+ ## DEC-007 — State survival sebagai Attribute di Player, HUD dibuat lewat kode
+@@ -44,3 +44,11 @@
+ - HUD: pojok kiri bawah. Pada perangkat touch dinaikkan 150 px karena thumbstick bawaan Roblox berada di kiri bawah.
+ - Dampak: tidak ada perubahan mapping Rojo. HUD survival lain (HP, checkpoint, dll.) nanti dapat memakai pola yang sama.
+ 
++## DEC-008 — Makanan/minuman di dunia: tag + ProximityPrompt, +1% dengan cooldown 5 dtk (config)
++- Tanggal: 2026-10-18
++- Konteks: instruksi terbaru: berinteraksi dengan makanan/minuman menambah 1% lapar/haus, cooldown sekitar 5 detik, bisa diatur. Nama objek di Workspace belum terverifikasi (Studio tidak bisa diinspeksi), dan GDD §12 belum punya tag. Ini terpisah dari Shop CP1 (+40, lewat Ibu Warung) yang tetap pada rencana awal.
++- Keputusan: `ConsumableService` mengikat semua objek ber-CollectionService tag `Food`/`Drink`. Memakai ProximityPrompt yang sudah ada di objek; bila tidak ada, server membuatnya (tanpa membuat Part/aset). Amount=1 dan Cooldown=5 per jenis di `SurvivalConfig.Consumables`; override per objek via Attribute `ConsumeAmount`/`ConsumeCooldown`.
++- Cooldown: per pemain. `CooldownScope = "Object"` (default, per objek) atau `"Player"` (per jenis Food/Drink). Default "Object" mengikuti pembacaan literal; risikonya satu pemain bisa berpindah antar objek untuk menambah lebih cepat. Ubah ke "Player" bila tidak diinginkan.
++- Aturan: stat sudah penuh = tidak ada efek dan cooldown tidak terpakai. Objek tidak dihapus setelah dipakai.
++- Validasi server: karakter hidup, tag masih terpasang, jarak (MaxActivationDistance prompt + `DistanceTolerance`), cooldown, stat belum penuh, nilai Attribute divalidasi (tidak valid = pakai default).
++- Dampak: tidak ada Remote baru, tidak ada perubahan mapping Rojo. Pemasangan tag di Studio dilakukan manual oleh pengguna.
+diff --git a/.ai/GAME_CONTEXT.md b/.ai/GAME_CONTEXT.md
+index 8ee84c0..bd7e965 100644
+--- a/.ai/GAME_CONTEXT.md
++++ b/.ai/GAME_CONTEXT.md
+@@ -70,8 +70,8 @@ Backpack: slot, ikon, jumlah, tombol Equip/Use/Drop. Obor bisa di-equip lalu din
+ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang → tunggu 3 detik → pilih spawn point yang belum terpakai → spawn. Jumlah aktif selalu tetap.
+ 
+ ### Survival
+-- **Hunger:** mulai **50**, −1 per **5 detik** (instruksi terbaru, lihat DEC-006; angka diatur di `SurvivalConfig`; GDD awal: 100 dan −1/30 dtk). >50 normal; 25–50 efek ringan; 1–24 halusinasi naik; 0 → **knock** (instruksi terbaru; GDD hanya menurunkan speed).
+-- **Thirst:** mulai **50**, −1 per **5 detik** (instruksi terbaru, lihat DEC-006; GDD awal: 100 dan −1/20 dtk). 0 → **jalan lambat**, kamera goyang, napas, blur, halusinasi.
++- **Hunger:** mulai **50**, −1 per **10 detik** (nilai aktual di `SurvivalConfig`, diubah pengguna dari 5 dtk di commit 347ef28; GDD awal: 100 dan −1/30 dtk; lihat DEC-006). >50 normal; 25–50 efek ringan; 1–24 halusinasi naik; 0 → **knock** (instruksi terbaru; GDD hanya menurunkan speed).
++- **Thirst:** mulai **50**, −1 per **10 detik** (nilai aktual di `SurvivalConfig`; GDD awal: 100 dan −1/20 dtk; lihat DEC-006). 0 → **jalan lambat**, kamera goyang, napas, blur, halusinasi.
+ - Halusinasi level 1–4: bayangan/suara → NPC/player palsu → hantu/fake item/fake checkpoint → jumpscare/distorsi.
+ 
+ ### CP1 — Warung
+@@ -148,7 +148,14 @@ Workspace
+ Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, BranchSpawnPoint, CraftingStation, TorchRequiredZone, TorchFailZone, TorchTimerZone, DiveZone, FishSpawnPoint, WindZone, SlipperyZone, FallZone, OfferingSpawnPoint, SummitGate). Wajib diaudit di Studio sebelum dipakai script.
+ 
+ ## 12. Tags & Attributes
+-Belum ada. Diisi dari audit Studio (Phase 0, bagian Workspace).
++Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit terhadap Workspace aktual):
++| Tag / Attribute | Dipasang pada | Fungsi |
++|---|---|---|
++| Tag `Food` | Model/Part makanan | Interaksi menambah Hunger (config: `SurvivalConfig.Consumables.Types.Food`) |
++| Tag `Drink` | Model/Part minuman | Interaksi menambah Thirst (`...Types.Drink`) |
++| Attribute `ConsumeAmount` (number) | objek ber-tag | Override jumlah tambah untuk objek itu |
++| Attribute `ConsumeCooldown` (number, detik) | objek ber-tag | Override cooldown untuk objek itu |
++| Attribute `Hunger`, `Thirst` (number) | Player (ditulis server) | State survival personal; client read-only |
+ 
+ ## 13. Remotes
+ Belum ada. Didefinisikan di Phase 1 dan wajib dicatat di sini. Prinsip: client mengirim intent, server memvalidasi dan membalas state. Tiap Remote wajib rate-limit.
+diff --git a/.ai/TASKS.md b/.ai/TASKS.md
+index 7f28b59..6c0fd0d 100644
+--- a/.ai/TASKS.md
++++ b/.ai/TASKS.md
+@@ -1,7 +1,7 @@
+ # TASKS
+ 
+ ## In progress
+-- [ ] PHASE 2 — Hunger/Thirst + HUD: kode selesai, menunggu tes Studio/mobile/multiplayer oleh pengguna
++- [ ] PHASE 2 — Hunger/Thirst + HUD + konsumsi makanan/minuman: kode selesai, menunggu pemasangan tag Food/Drink dan tes Studio/mobile/multiplayer oleh pengguna
+ - [ ] PHASE 0b — audit Workspace/Studio (masih terhambat: perlu dump hierarchy atau Studio MCP)
+ 
+ ## Next (urut prioritas)
+diff --git a/src/server/Services/ConsumableService.luau b/src/server/Services/ConsumableService.luau
+new file mode 100644
+index 0000000..18868cd
+--- /dev/null
++++ b/src/server/Services/ConsumableService.luau
+@@ -0,0 +1,250 @@
++--!strict
++--[[
++	ConsumableService (SERVER) — makanan/minuman di dunia yang menambah Hunger/Thirst.
++
++	Alur: pemain menekan ProximityPrompt -> server validasi -> SurvivalService.Add.
++
++	Cara memasang di Studio (tanpa mengubah script):
++	  1. Beri CollectionService tag "Food" (menambah Hunger) atau "Drink" (menambah Thirst)
++	     pada Model/Part makanan atau minuman. Tag bisa diubah di SurvivalConfig.
++	  2. Jika objek sudah punya ProximityPrompt (di dalamnya), prompt itu dipakai apa adanya.
++	     Jika belum, server membuatkan satu (ActionText "Makan"/"Minum").
++	  3. (Opsional) Attribute di objek: ConsumeAmount, ConsumeCooldown untuk override per objek.
++
++	Validasi server: karakter hidup, tag masih terpasang, jarak ke prompt, cooldown per pemain,
++	dan stat belum penuh (jika penuh: tidak ada efek dan cooldown tidak terpakai).
++	Objek tidak dihapus setelah dipakai; state bersifat personal (cooldown per pemain).
++]]
++
++local CollectionService = game:GetService("CollectionService")
++local Players = game:GetService("Players")
++local ReplicatedStorage = game:GetService("ReplicatedStorage")
++
++local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SurvivalConfig") :: ModuleScript) :: any
++local SurvivalService = require((script.Parent :: Instance):WaitForChild("SurvivalService") :: ModuleScript) :: any
++
++local AMOUNT_ATTRIBUTE = "ConsumeAmount"
++local COOLDOWN_ATTRIBUTE = "ConsumeCooldown"
++local MAX_COOLDOWN = 3600
++
++local ConsumableService = {}
++
++type Binding = {
++	Prompt: ProximityPrompt,
++	CreatedPrompt: boolean,
++	Connection: RBXScriptConnection,
++}
++
++-- bindings[typeName][instance]
++local bindings: { [string]: { [Instance]: Binding } } = {}
++-- lastUse[player][key] = os.clock() terakhir berhasil. key = Instance (scope Object) atau typeName (scope Player).
++local lastUse: { [Player]: { [any]: number } } = {}
++local started = false
++
++local function readNumberAttribute(instance: Instance, name: string, default: number, minValue: number, maxValue: number): number
++	local value = instance:GetAttribute(name)
++	if type(value) == "number" and value == value and value >= minValue and value <= maxValue then
++		return value
++	end
++	return default
++end
++
++local function getPromptPosition(prompt: ProximityPrompt): Vector3?
++	local parent = prompt.Parent
++	if parent == nil then
++		return nil
++	end
++	if parent:IsA("BasePart") then
++		return parent.Position
++	elseif parent:IsA("Attachment") then
++		return parent.WorldPosition
++	elseif parent:IsA("Model") then
++		return parent:GetPivot().Position
++	end
++	return nil
++end
++
++local function getAliveRoot(player: Player): BasePart?
++	local character = player.Character
++	if not character then
++		return nil
++	end
++	local humanoid = character:FindFirstChildOfClass("Humanoid")
++	if humanoid == nil or humanoid.Health <= 0 then
++		return nil
++	end
++	local root = character:FindFirstChild("HumanoidRootPart")
++	if root ~= nil and root:IsA("BasePart") then
++		return root
++	end
++	return nil
++end
++
++local function onTriggered(instance: Instance, typeName: string, def: any, binding: Binding, player: Player)
++	-- Objek sudah dihapus / tag dicabut.
++	if instance.Parent == nil or not CollectionService:HasTag(instance, def.Tag) then
++		return
++	end
++	local prompt = binding.Prompt
++
++	-- Karakter hidup + jarak (jangan percaya client; Triggered bisa dipanggil exploit dari jauh).
++	local root = getAliveRoot(player)
++	if root == nil then
++		return
++	end
++	local promptPosition = getPromptPosition(prompt)
++	if promptPosition == nil then
++		return
++	end
++	local maxDistance = prompt.MaxActivationDistance + Config.Consumables.DistanceTolerance
++	if (root.Position - promptPosition).Magnitude > maxDistance then
++		return
++	end
++
++	-- Stat sudah penuh: tidak ada efek, cooldown tidak terpakai.
++	local statDef = Config.Stats[def.Stat]
++	local current = SurvivalService.Get(player, def.Stat)
++	if statDef == nil or current == nil or current >= statDef.Max then
++		return
++	end
++
++	-- Cooldown per pemain.
++	local amount = readNumberAttribute(instance, AMOUNT_ATTRIBUTE, def.Amount, 0, statDef.Max)
++	local cooldown = readNumberAttribute(instance, COOLDOWN_ATTRIBUTE, def.Cooldown, 0, MAX_COOLDOWN)
++	local key: any = if Config.Consumables.CooldownScope == "Player" then typeName else instance
++	local playerUse = lastUse[player]
++	if playerUse == nil then
++		return -- pemain sudah keluar
++	end
++	local now = os.clock()
++	local last = playerUse[key]
++	if last ~= nil and now - last < cooldown then
++		return
++	end
++
++	if amount <= 0 then
++		return
++	end
++	if SurvivalService.Add(player, def.Stat, amount) ~= nil then
++		playerUse[key] = now
++	end
++end
++
++local function findOrCreatePrompt(instance: Instance, def: any): (ProximityPrompt?, boolean)
++	if instance:IsA("ProximityPrompt") then
++		return instance, false
++	end
++	local existing = instance:FindFirstChildWhichIsA("ProximityPrompt", true)
++	if existing ~= nil then
++		return existing, false
++	end
++
++	local host: Instance? = nil
++	if instance:IsA("BasePart") then
++		host = instance
++	elseif instance:IsA("Model") then
++		host = instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart", true)
++	end
++	if host == nil then
++		return nil, false
++	end
++
++	local prompt = Instance.new("ProximityPrompt")
++	prompt.Name = "ConsumePrompt"
++	prompt.ActionText = def.ActionText
++	prompt.ObjectText = instance.Name
++	prompt.HoldDuration = 0
++	prompt.RequiresLineOfSight = false
++	prompt.MaxActivationDistance = Config.Consumables.PromptDistance
++	prompt.Parent = host
++	return prompt, true
++end
++
++local function bind(typeName: string, def: any, instance: Instance)
++	local typeBindings = bindings[typeName]
++	if typeBindings[instance] ~= nil then
++		return
++	end
++	local prompt, created = findOrCreatePrompt(instance, def)
++	if prompt == nil then
++		warn(`[ConsumableService] {instance:GetFullName()} ber-tag {def.Tag} tapi tidak punya ProximityPrompt dan bukan Model/Part; dilewati.`)
++		return
++	end
++
++	local binding: Binding = {
++		Prompt = prompt,
++		CreatedPrompt = created,
++		Connection = (nil :: any),
++	}
++	binding.Connection = prompt.Triggered:Connect(function(player: Player)
++		onTriggered(instance, typeName, def, binding, player)
++	end)
++	typeBindings[instance] = binding
++end
++
++local function unbind(typeName: string, instance: Instance)
++	local binding = bindings[typeName][instance]
++	if binding == nil then
++		return
++	end
++	bindings[typeName][instance] = nil
++	binding.Connection:Disconnect()
++	if binding.CreatedPrompt then
++		binding.Prompt:Destroy()
++	end
++end
++
++local function validateDef(typeName: string, def: any): boolean
++	if type(def) ~= "table" or type(def.Tag) ~= "string" or def.Tag == "" then
++		warn(`[ConsumableService] Config {typeName}: Tag tidak valid.`)
++		return false
++	end
++	if Config.Stats[def.Stat] == nil then
++		warn(`[ConsumableService] Config {typeName}: Stat '{tostring(def.Stat)}' tidak ada di Config.Stats.`)
++		return false
++	end
++	if type(def.Amount) ~= "number" or def.Amount <= 0 then
++		warn(`[ConsumableService] Config {typeName}: Amount harus > 0.`)
++		return false
++	end
++	if type(def.Cooldown) ~= "number" or def.Cooldown < 0 then
++		warn(`[ConsumableService] Config {typeName}: Cooldown harus >= 0.`)
++		return false
++	end
++	return true
++end
++
++function ConsumableService.Start()
++	if started then
++		return
++	end
++	started = true
++
++	Players.PlayerAdded:Connect(function(player: Player)
++		lastUse[player] = setmetatable({}, { __mode = "k" }) :: any
++	end)
++	Players.PlayerRemoving:Connect(function(player: Player)
++		lastUse[player] = nil
++	end)
++	for _, player in Players:GetPlayers() do
++		lastUse[player] = setmetatable({}, { __mode = "k" }) :: any
++	end
++
++	for typeName, def in Config.Consumables.Types do
++		if not validateDef(typeName, def) then
++			continue
++		end
++		bindings[typeName] = {}
++		for _, instance in CollectionService:GetTagged(def.Tag) do
++			bind(typeName, def, instance)
++		end
++		CollectionService:GetInstanceAddedSignal(def.Tag):Connect(function(instance: Instance)
++			bind(typeName, def, instance)
++		end)
++		CollectionService:GetInstanceRemovedSignal(def.Tag):Connect(function(instance: Instance)
++			unbind(typeName, instance)
++		end)
++	end
++end
++
++return ConsumableService
+diff --git a/src/server/init.server.luau b/src/server/init.server.luau
+index 61dab61..d4b72c7 100644
+--- a/src/server/init.server.luau
++++ b/src/server/init.server.luau
+@@ -5,3 +5,6 @@ local Services = script:WaitForChild("Services")
+ 
+ local SurvivalService = require(Services:WaitForChild("SurvivalService") :: ModuleScript) :: any
+ SurvivalService.Start()
++
++local ConsumableService = require(Services:WaitForChild("ConsumableService") :: ModuleScript) :: any
++ConsumableService.Start()
+diff --git a/src/shared/SurvivalConfig.luau b/src/shared/SurvivalConfig.luau
+index dcc7e81..57465c6 100644
+--- a/src/shared/SurvivalConfig.luau
++++ b/src/shared/SurvivalConfig.luau
+@@ -11,6 +11,19 @@
+ 
+ 	Satuan stat = persen dari Max (Max 100 -> 1 poin = 1%).
+ 	Server adalah satu-satunya yang menulis nilai; client hanya membaca.
++
++	Consumables (makanan/minuman di dunia, dipicu ProximityPrompt):
++	Tag           : CollectionService tag yang dipasang pada objek (Model/Part) di Studio.
++	Stat          : stat yang bertambah ("Hunger" / "Thirst").
++	Amount        : poin yang ditambah per interaksi.
++	Cooldown      : detik jeda antar interaksi (per pemain).
++	ActionText    : teks prompt (hanya dipakai bila server membuat prompt sendiri).
++	CooldownScope : "Object" = cooldown per objek per pemain; "Player" = per jenis (Food/Drink) per pemain.
++	DistanceTolerance : toleransi jarak (stud) di atas MaxActivationDistance prompt untuk validasi server.
++	PromptDistance    : MaxActivationDistance untuk prompt yang dibuat server.
++
++	Override per objek (opsional, Attribute di objek ber-tag, di Studio):
++	ConsumeAmount (number), ConsumeCooldown (number).
+ ]]
+ 
+ export type StatDef = {
+@@ -20,10 +33,26 @@ export type StatDef = {
+ 	DecayInterval: number,
+ }
+ 
++export type ConsumableDef = {
++	Tag: string,
++	Stat: string,
++	Amount: number,
++	Cooldown: number,
++	ActionText: string,
++}
++
++export type ConsumableSettings = {
++	CooldownScope: string,
++	DistanceTolerance: number,
++	PromptDistance: number,
++	Types: { [string]: ConsumableDef },
++}
++
+ export type Config = {
+ 	Stats: { [string]: StatDef },
+ 	StatOrder: { string },
+ 	LowThreshold: number,
++	Consumables: ConsumableSettings,
+ }
+ 
+ local Config: Config = {
+@@ -48,6 +77,28 @@ local Config: Config = {
+ 	-- Persentase di bawah nilai ini dianggap "kritis" (bar HUD berubah merah).
+ 	-- Mengacu GDD: halusinasi mulai di 1-24%.
+ 	LowThreshold = 25,
++
++	Consumables = {
++		CooldownScope = "Object",
++		DistanceTolerance = 6,
++		PromptDistance = 8,
++		Types = {
++			Food = {
++				Tag = "Food",
++				Stat = "Hunger",
++				Amount = 1,
++				Cooldown = 5,
++				ActionText = "Makan",
++			},
++			Drink = {
++				Tag = "Drink",
++				Stat = "Thirst",
++				Amount = 1,
++				Cooldown = 5,
++				ActionText = "Minum",
++			},
++		},
++	},
+ }
+ 
+ return Config

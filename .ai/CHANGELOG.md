@@ -12,3 +12,8 @@
 - File/skrip: `src/shared/SurvivalConfig.luau`, `src/server/Services/SurvivalService.luau`, `src/server/init.server.luau`, `src/client/UI/SurvivalHud.luau`, `src/client/init.client.luau`, `.ai/*`.
 - Hasil test: sintaks Luau OK, `rojo build` OK (mapping sesuai), logika decay lolos 15 uji simulasi (stub, di luar Roblox). Belum diuji di Studio, mobile, maupun multiplayer.
 
+## 2026-10-18 (3) — Makanan & minuman menambah Hunger/Thirst
+- Perubahan: `ConsumableService` (tag Food/Drink, ProximityPrompt, +1% per interaksi, cooldown 5 dtk), config konsumsi di `SurvivalConfig`.
+- Sistem terdampak: Survival (ditambah), bootstrap server.
+- File/skrip: `src/server/Services/ConsumableService.luau`, `src/shared/SurvivalConfig.luau`, `src/server/init.server.luau`, `.ai/*`.
+- Hasil test: sintaks Luau OK, `rojo build` OK, 28 kasus uji simulasi (stub) lolos. Belum diuji di Studio, dengan objek asli, maupun multiplayer.

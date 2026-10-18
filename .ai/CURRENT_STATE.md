@@ -6,6 +6,7 @@ Branch: main (base commit e41f25c "starter fix"), perubahan Hunger/Thirst belum 
 
 ## Working systems
 - Hunger/Thirst + HUD: TERIMPLEMENTASI, BELUM TERUJI di Studio (lihat CHANGELOG untuk tes yang sudah dilakukan).
+- Konsumsi makanan/minuman (tag Food/Drink): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh objek ber-tag di Studio.
 
 ## Incomplete systems
 - Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
@@ -22,7 +23,7 @@ Branch: main (base commit e41f25c "starter fix"), perubahan Hunger/Thirst belum 
 - Roblox Studio MCP tidak tersedia pada audit ini; Workspace belum diinspeksi. Nama objek di GDD belum terverifikasi.
 
 ## Current task
-- Phase 2: verifikasi Hunger/Thirst di Studio (1 pemain, mobile emulator, 2+ pemain).
+- Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
 
 ## Next task
 - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
