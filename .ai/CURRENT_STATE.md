@@ -1,32 +1,34 @@
 # CURRENT STATE
 
 Last updated: 2026-10-18
-Current phase: PHASE 0 (audit repo selesai; audit Studio dan Rojo terhambat)
-Branch: main (commit a892981 "starter"), working tree berisi perubahan dokumentasi belum di-commit
+Current phase: PHASE 2 (CP1 — bagian Hunger/Thirst dimulai)
+Branch: main (base commit e41f25c "starter fix"), perubahan Hunger/Thirst belum di-commit
 
 ## Working systems
-- (none) — belum ada script Luau.
+- Hunger/Thirst + HUD: TERIMPLEMENTASI, BELUM TERUJI di Studio (lihat CHANGELOG untuk tes yang sudah dilakukan).
 
 ## Incomplete systems
-- Seluruh sistem gameplay belum dimulai.
+- Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
+- Makan/minum (+40) menunggu Shop CP1; API server `SurvivalService.Add` sudah siap.
+- Sistem gameplay lain belum dimulai.
 
 ## Known bugs
 - lihat BUGS.md (belum ada)
 
 ## Hasil audit Phase 0
-- Repo berhasil di-clone dan dibaca. Isi awal hanya starter kit (template + placeholder).
-- Tidak ada `default.project.json`, tidak ada `src/`, tidak ada script.
+- Repo di-clone dan di-pull (fast-forward ke e41f25c). `default.project.json` kini ada; `rojo build` berhasil.
+- Mapping: `src/shared`→ReplicatedStorage.Shared, `src/server`→ServerScriptService.Server (Script), `src/client`→StarterPlayerScripts.Client (LocalScript).
 - Dokumentasi (`CLAUDE.md`, `.ai/`) kini diisi dari GDD v1.0 dan instruksi pengguna.
 - Roblox Studio MCP tidak tersedia pada audit ini; Workspace belum diinspeksi. Nama objek di GDD belum terverifikasi.
 
 ## Current task
-- Phase 0: melengkapi audit (Rojo + Studio).
+- Phase 2: verifikasi Hunger/Thirst di Studio (1 pemain, mobile emulator, 2+ pemain).
 
 ## Next task
-- Phase 1 Core, setelah blocker dan open question yang relevan terjawab.
+- Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
 
 ## Dependencies / blockers
-1. `default.project.json` dan struktur `src/` (server/client/shared) belum ada. Perlu tahu apakah project Rojo lokal sudah ada.
+1. (Teratasi) `default.project.json` dan `src/` sudah ada.
 2. Dump hierarchy Workspace dari Studio (folder, Part, NPC, spawn point, Tag, Attribute) atau akses Studio MCP.
 3. Persetujuan DEC-003 (mekanisme gate per pemain).
 4. Jawaban Q1 (knock/pemulihan), Q2 (shop), Q3 (angka damage) di GAME_CONTEXT bagian 16.

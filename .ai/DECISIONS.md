@@ -30,3 +30,17 @@
 - Tanggal: 2026-10-18
 - Keputusan: dikerjakan setelah main place stabil (cutscene Moon Animator 2, lobby, pilih 1–5 pemain, cooldown 10 detik, teleport).
 - Dampak: sistem lain tidak boleh bergantung padanya; spawn awal memakai basecamp langsung.
+
+## DEC-006 — Parameter Hunger/Thirst mengikuti instruksi terbaru, lewat config
+- Tanggal: 2026-10-18
+- Konteks: GDD: mulai 100, Hunger −1/30 dtk, Thirst −1/20 dtk. Instruksi terbaru: mulai 50, turun 1 per 5 detik, dan harus mudah diatur.
+- Keputusan: semua angka berada di `src/shared/SurvivalConfig.luau` per stat (Max, Start, DecayAmount, DecayInterval). Nilai awal 50, interval 5 dtk untuk keduanya. `DecayInterval <= 0` mematikan decay stat itu.
+- Dampak: GDD §Survival diberi anotasi. Efek di 0 (knock/slow) TIDAK diimplementasikan; menunggu Q1. Decay dijeda saat pemain tidak punya karakter hidup (asumsi; belum ada player state formal). Nilai tidak di-reset saat respawn karena disimpan di Player, bukan karakter (asumsi, perlu konfirmasi).
+
+## DEC-007 — State survival sebagai Attribute di Player, HUD dibuat lewat kode
+- Tanggal: 2026-10-18
+- Konteks: butuh sinkronisasi server→client tanpa Remote baru; StarterGui tidak dipetakan Rojo dan Studio belum bisa diinspeksi.
+- Keputusan: server menulis Attribute `Hunger` dan `Thirst` pada Player (selaras arah DEC-003). Client hanya membaca dan menggambar HUD dari kode (`src/client/UI/SurvivalHud.luau`). Tidak ada RemoteEvent/RemoteFunction baru. Pemilik tunggal state: `SurvivalService`.
+- HUD: pojok kiri bawah. Pada perangkat touch dinaikkan 150 px karena thumbstick bawaan Roblox berada di kiri bawah.
+- Dampak: tidak ada perubahan mapping Rojo. HUD survival lain (HP, checkpoint, dll.) nanti dapat memakai pola yang sama.
+

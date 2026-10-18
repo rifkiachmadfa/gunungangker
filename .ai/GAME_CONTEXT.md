@@ -70,8 +70,8 @@ Backpack: slot, ikon, jumlah, tombol Equip/Use/Drop. Obor bisa di-equip lalu din
 Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang → tunggu 3 detik → pilih spawn point yang belum terpakai → spawn. Jumlah aktif selalu tetap.
 
 ### Survival
-- **Hunger:** mulai 100, −1 per 30 detik. >50 normal; 25–50 efek ringan; 1–24 halusinasi naik; 0 → **knock** (instruksi terbaru; GDD hanya menurunkan speed).
-- **Thirst:** mulai 100, −1 per 20 detik. 0 → **jalan lambat**, kamera goyang, napas, blur, halusinasi.
+- **Hunger:** mulai **50**, −1 per **5 detik** (instruksi terbaru, lihat DEC-006; angka diatur di `SurvivalConfig`; GDD awal: 100 dan −1/30 dtk). >50 normal; 25–50 efek ringan; 1–24 halusinasi naik; 0 → **knock** (instruksi terbaru; GDD hanya menurunkan speed).
+- **Thirst:** mulai **50**, −1 per **5 detik** (instruksi terbaru, lihat DEC-006; GDD awal: 100 dan −1/20 dtk). 0 → **jalan lambat**, kamera goyang, napas, blur, halusinasi.
 - Halusinasi level 1–4: bayangan/suara → NPC/player palsu → hantu/fake item/fake checkpoint → jumpscare/distorsi.
 
 ### CP1 — Warung
