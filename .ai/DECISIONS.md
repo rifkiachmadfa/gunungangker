@@ -109,3 +109,11 @@
 - Tambahan defensif: bila template resource berupa Tool (kasus `ItemConfig` dan `ResourceConfig` menunjuk `QuestModels.Ranting` yang sama), `ResourceService` mengubah salinan untuk client menjadi Model (Handle = PrimaryPart, Script dibuang) karena `ResourceRenderer` hanya menggambar Model/BasePart. Template asli tidak diubah.
 - Risiko/utang: prompt dibuat saat quest pertama kali diterima (belum saat server start); prompt dan hide-lokal bergantung pada perilaku engine yang belum diuji di Studio; mobile menampilkan tombol tahan bawaan Roblox.
 - Alternatif ditolak: prompt di klon lokal client + Remote (menambah kontrak Remote dan rate-limit); durasi tahan dipercayakan ke `HoldDuration` engine saja (bisa dibypass exploit).
+
+## DEC-016 — Template resource disalin saat server start; client tidak berhenti bila template belum tiba
+- Tanggal: 2026-10-20
+- Konteks: BUG-001. Template dibuat lazy saat `Activate` pertama, sedangkan client berhenti menunggu setelah `ASSET_WAIT_TIMEOUT`.
+- Keputusan: (1) `ResourceService.Start()` memanggil `ensureAsset` untuk semua set (idempoten; `Activate` tetap memanggilnya). (2) `ResourceRenderer.bindSet` tidak `return` saat template belum ada: listener attribute dan sinkron prompt selalu terpasang; template dicari lewat `resolveTemplate()` setiap kali menggambar, dan ditunggu di latar belakang lalu `apply()` ulang begitu tiba.
+- Alasan: kegagalan menunggu template tidak boleh mematikan seluruh renderer pemain. Dua lapis supaya salah satu saja yang gagal tidak mengulang bug.
+- Dampak: tidak ada Remote baru, tidak ada perubahan kontrak. Pembuatan prompt di spawner (`ensurePrompts`) tetap saat `Activate` pertama (utang DEC-015 tidak diubah).
+

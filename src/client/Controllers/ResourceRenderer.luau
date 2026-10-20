@@ -59,11 +59,17 @@ local function sanitize(clone: Instance)
 end
 
 local function bindSet(player: Player, setId: string, def: any, container: Folder)
-	local assets = ReplicatedStorage:WaitForChild(Config.AssetsFolder, ASSET_WAIT_TIMEOUT)
-	local template = if assets ~= nil then assets:WaitForChild(def.AssetName, ASSET_WAIT_TIMEOUT) else nil
-	if template == nil then
-		warn(`[ResourceRenderer] Template '{Config.AssetsFolder}.{def.AssetName}' tidak tersedia (set {setId}); resource tidak akan terlihat.`)
-		return
+	-- Template bisa tiba belakangan dari server. JANGAN berhenti (return) bila belum ada: listener attribute
+	-- dan sinkron prompt di bawah harus tetap terpasang. Bila tidak, pemain yang sudah lama menunggu
+	-- (sebelum ada yang menerima quest) tidak akan pernah melihat resource-nya dan tidak akan pernah
+	-- menyembunyikan prompt titik yang bukan miliknya.
+	local template: Instance? = nil
+	local function resolveTemplate(): Instance?
+		if template == nil then
+			local assets = ReplicatedStorage:FindFirstChild(Config.AssetsFolder)
+			template = if assets ~= nil then assets:FindFirstChild(def.AssetName) else nil
+		end
+		return template
 	end
 
 	local rendered: { [string]: Instance } = {}
@@ -105,7 +111,11 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
 			end
 			return
 		end
-		local clone = template:Clone()
+		local source = resolveTemplate()
+		if source == nil then
+			return -- template belum tiba; apply() dipanggil lagi saat template tersedia
+		end
+		local clone = source:Clone()
 		if not clone:IsA("PVInstance") then
 			warn(`[ResourceRenderer] Template '{def.AssetName}' harus Model atau BasePart.`)
 			return
@@ -145,6 +155,19 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
 
 	player:GetAttributeChangedSignal(def.Attribute):Connect(apply)
 	apply()
+
+	if resolveTemplate() == nil then
+		task.spawn(function()
+			local assets = ReplicatedStorage:WaitForChild(Config.AssetsFolder, ASSET_WAIT_TIMEOUT)
+			local found = if assets ~= nil then assets:WaitForChild(def.AssetName, ASSET_WAIT_TIMEOUT) else nil
+			if found == nil then
+				warn(`[ResourceRenderer] Template '{Config.AssetsFolder}.{def.AssetName}' belum tersedia (set {setId}); resource digambar begitu template tiba.`)
+				return
+			end
+			template = found
+			apply() -- gambar resource yang sudah tercatat di attribute sebelum template tiba
+		end)
+	end
 
 	-- Prompt dibuat server saat quest diterima dan bisa tiba di client sesudah attribute: sinkronkan lagi
 	-- setiap kali prompt baru muncul. Folder titik spawn ditunggu (bukan diasumsikan sudah ada).

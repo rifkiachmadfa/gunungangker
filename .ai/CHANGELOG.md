@@ -41,3 +41,10 @@
 - Sistem terdampak: Resource, client renderer. Tidak ada Remote baru, tidak ada perubahan mapping Rojo, `InventoryService`/`QuestService` tidak diubah.
 - File/skrip: `src/shared/ResourceConfig.luau`, `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
 - Hasil test: sintaks Luau OK, `luau-analyze` tanpa error non-API, `rojo build` OK; 104 (Tool = objek dunia) dan 101 (Tool terpisah) uji mock lulus, stabil 40 kali, dan 23 mutasi sengaja (validasi durasi/jarak/titik/hidup, konsumsi hold, sinkronisasi client, dll.): 22 tertangkap, 1 tidak teramati (pembersihan memori saat pemain keluar; tidak ada efek perilaku). Mock bukan Roblox sungguhan: perilaku asli ProximityPrompt (urutan event, UI tahan, mobile), replikasi prompt, dan multiplayer BELUM diuji di Studio.
+
+## 2026-10-20 — Perbaikan BUG-001: renderer ranting mati untuk pemain yang menunggu lama
+- Perubahan: `ResourceService.Start()` menyalin template resource sejak server start; `ResourceRenderer` tidak lagi berhenti bila template belum tiba (listener attribute + sinkron prompt tetap terpasang, template dicari ulang dan digambar saat tiba).
+- Sistem terdampak: Resource (server dan client). Tidak ada Remote baru, tidak ada perubahan config, tidak ada perubahan logika validasi prompt.
+- File/skrip: `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
+- Hasil test: `luau-compile` OK. Uji mock renderer (Roblox di-mock, source asli): versi lama gagal 7 dari 8 skenario (client yang menyala sebelum template ada), versi baru lulus 8 dari 8. Uji mock server: template ada sebelum `Activate` pertama (lama: tidak). Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio, uji multiplayer nyata, `rojo build`.
+

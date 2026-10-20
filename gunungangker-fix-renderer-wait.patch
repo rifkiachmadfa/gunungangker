@@ -1,0 +1,130 @@
+diff --git a/.ai/BUGS.md b/.ai/BUGS.md
+index c05ca25..d835227 100644
+--- a/.ai/BUGS.md
++++ b/.ai/BUGS.md
+@@ -1,7 +1,15 @@
+ # BUGS
+ 
+ ## Open
+-(none)
++### BUG-001 — Ranting tidak terlihat dan tombol tidak tersembunyi untuk pemain yang sudah lama menunggu
++- Severity: Tinggi (progres CP1 pemain multiplayer terblokir)
++- Sistem terdampak: Resource (server `ensureAsset`, client `ResourceRenderer.bindSet`)
++- Reproduksi: 2+ pemain bergabung; tunggu > ~60 dtk tanpa ada yang menerima quest; salah satu pemain bicara ke NPC dan menerima quest; pemain lain lalu menerima quest.
++- Expected: tiap pemain melihat 10 ranting miliknya dan tombol hanya di titik miliknya.
++- Actual (diduga dari kode, BELUM direproduksi di Studio): pemain yang menunggu lebih lama dari waktu tunggu tidak melihat ranting dan semua tombol di 20 titik tetap terlihat (server tetap menolak titik tidak aktif).
++- Root cause: template (`ReplicatedStorage.QuestAssets.<AssetName>`) baru dibuat server saat `Activate` pertama; client menunggu template maksimal `ASSET_WAIT_TIMEOUT` (30 dtk untuk folder + 30 dtk untuk template) lalu `bindSet` `return`, sehingga listener attribute dan sinkron prompt tidak pernah terpasang untuk sisa sesi.
++- Perbaikan: server menyalin template di `ResourceService.Start()`; client tidak lagi `return` bila template belum ada (listener dan sinkron prompt tetap terpasang, template dicari ulang dan digambar begitu tiba).
++- Status: perbaikan ditulis; lulus uji mock (client lama gagal 7 dari 8 skenario, baru lulus 8 dari 8); BELUM diverifikasi di Studio dan multiplayer nyata.
+ 
+ ## Resolved
+ (none)
+diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
+index d710047..c17802b 100644
+--- a/.ai/CHANGELOG.md
++++ b/.ai/CHANGELOG.md
+@@ -41,3 +41,10 @@
+ - Sistem terdampak: Resource, client renderer. Tidak ada Remote baru, tidak ada perubahan mapping Rojo, `InventoryService`/`QuestService` tidak diubah.
+ - File/skrip: `src/shared/ResourceConfig.luau`, `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
+ - Hasil test: sintaks Luau OK, `luau-analyze` tanpa error non-API, `rojo build` OK; 104 (Tool = objek dunia) dan 101 (Tool terpisah) uji mock lulus, stabil 40 kali, dan 23 mutasi sengaja (validasi durasi/jarak/titik/hidup, konsumsi hold, sinkronisasi client, dll.): 22 tertangkap, 1 tidak teramati (pembersihan memori saat pemain keluar; tidak ada efek perilaku). Mock bukan Roblox sungguhan: perilaku asli ProximityPrompt (urutan event, UI tahan, mobile), replikasi prompt, dan multiplayer BELUM diuji di Studio.
++
++## 2026-10-20 — Perbaikan BUG-001: renderer ranting mati untuk pemain yang menunggu lama
++- Perubahan: `ResourceService.Start()` menyalin template resource sejak server start; `ResourceRenderer` tidak lagi berhenti bila template belum tiba (listener attribute + sinkron prompt tetap terpasang, template dicari ulang dan digambar saat tiba).
++- Sistem terdampak: Resource (server dan client). Tidak ada Remote baru, tidak ada perubahan config, tidak ada perubahan logika validasi prompt.
++- File/skrip: `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
++- Hasil test: `luau-compile` OK. Uji mock renderer (Roblox di-mock, source asli): versi lama gagal 7 dari 8 skenario (client yang menyala sebelum template ada), versi baru lulus 8 dari 8. Uji mock server: template ada sebelum `Activate` pertama (lama: tidak). Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio, uji multiplayer nyata, `rojo build`.
++
+diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
+index a8a094d..0b49e1a 100644
+--- a/.ai/DECISIONS.md
++++ b/.ai/DECISIONS.md
+@@ -109,3 +109,11 @@
+ - Tambahan defensif: bila template resource berupa Tool (kasus `ItemConfig` dan `ResourceConfig` menunjuk `QuestModels.Ranting` yang sama), `ResourceService` mengubah salinan untuk client menjadi Model (Handle = PrimaryPart, Script dibuang) karena `ResourceRenderer` hanya menggambar Model/BasePart. Template asli tidak diubah.
+ - Risiko/utang: prompt dibuat saat quest pertama kali diterima (belum saat server start); prompt dan hide-lokal bergantung pada perilaku engine yang belum diuji di Studio; mobile menampilkan tombol tahan bawaan Roblox.
+ - Alternatif ditolak: prompt di klon lokal client + Remote (menambah kontrak Remote dan rate-limit); durasi tahan dipercayakan ke `HoldDuration` engine saja (bisa dibypass exploit).
++
++## DEC-016 — Template resource disalin saat server start; client tidak berhenti bila template belum tiba
++- Tanggal: 2026-10-20
++- Konteks: BUG-001. Template dibuat lazy saat `Activate` pertama, sedangkan client berhenti menunggu setelah `ASSET_WAIT_TIMEOUT`.
++- Keputusan: (1) `ResourceService.Start()` memanggil `ensureAsset` untuk semua set (idempoten; `Activate` tetap memanggilnya). (2) `ResourceRenderer.bindSet` tidak `return` saat template belum ada: listener attribute dan sinkron prompt selalu terpasang; template dicari lewat `resolveTemplate()` setiap kali menggambar, dan ditunggu di latar belakang lalu `apply()` ulang begitu tiba.
++- Alasan: kegagalan menunggu template tidak boleh mematikan seluruh renderer pemain. Dua lapis supaya salah satu saja yang gagal tidak mengulang bug.
++- Dampak: tidak ada Remote baru, tidak ada perubahan kontrak. Pembuatan prompt di spawner (`ensurePrompts`) tetap saat `Activate` pertama (utang DEC-015 tidak diubah).
++
+diff --git a/src/client/Controllers/ResourceRenderer.luau b/src/client/Controllers/ResourceRenderer.luau
+index 67438ef..7de4e28 100644
+--- a/src/client/Controllers/ResourceRenderer.luau
++++ b/src/client/Controllers/ResourceRenderer.luau
+@@ -59,11 +59,17 @@ local function sanitize(clone: Instance)
+ end
+ 
+ local function bindSet(player: Player, setId: string, def: any, container: Folder)
+-	local assets = ReplicatedStorage:WaitForChild(Config.AssetsFolder, ASSET_WAIT_TIMEOUT)
+-	local template = if assets ~= nil then assets:WaitForChild(def.AssetName, ASSET_WAIT_TIMEOUT) else nil
+-	if template == nil then
+-		warn(`[ResourceRenderer] Template '{Config.AssetsFolder}.{def.AssetName}' tidak tersedia (set {setId}); resource tidak akan terlihat.`)
+-		return
++	-- Template bisa tiba belakangan dari server. JANGAN berhenti (return) bila belum ada: listener attribute
++	-- dan sinkron prompt di bawah harus tetap terpasang. Bila tidak, pemain yang sudah lama menunggu
++	-- (sebelum ada yang menerima quest) tidak akan pernah melihat resource-nya dan tidak akan pernah
++	-- menyembunyikan prompt titik yang bukan miliknya.
++	local template: Instance? = nil
++	local function resolveTemplate(): Instance?
++		if template == nil then
++			local assets = ReplicatedStorage:FindFirstChild(Config.AssetsFolder)
++			template = if assets ~= nil then assets:FindFirstChild(def.AssetName) else nil
++		end
++		return template
+ 	end
+ 
+ 	local rendered: { [string]: Instance } = {}
+@@ -105,7 +111,11 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
+ 			end
+ 			return
+ 		end
+-		local clone = template:Clone()
++		local source = resolveTemplate()
++		if source == nil then
++			return -- template belum tiba; apply() dipanggil lagi saat template tersedia
++		end
++		local clone = source:Clone()
+ 		if not clone:IsA("PVInstance") then
+ 			warn(`[ResourceRenderer] Template '{def.AssetName}' harus Model atau BasePart.`)
+ 			return
+@@ -146,6 +156,19 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
+ 	player:GetAttributeChangedSignal(def.Attribute):Connect(apply)
+ 	apply()
+ 
++	if resolveTemplate() == nil then
++		task.spawn(function()
++			local assets = ReplicatedStorage:WaitForChild(Config.AssetsFolder, ASSET_WAIT_TIMEOUT)
++			local found = if assets ~= nil then assets:WaitForChild(def.AssetName, ASSET_WAIT_TIMEOUT) else nil
++			if found == nil then
++				warn(`[ResourceRenderer] Template '{Config.AssetsFolder}.{def.AssetName}' belum tersedia (set {setId}); resource digambar begitu template tiba.`)
++				return
++			end
++			template = found
++			apply() -- gambar resource yang sudah tercatat di attribute sebelum template tiba
++		end)
++	end
++
+ 	-- Prompt dibuat server saat quest diterima dan bisa tiba di client sesudah attribute: sinkronkan lagi
+ 	-- setiap kali prompt baru muncul. Folder titik spawn ditunggu (bukan diasumsikan sudah ada).
+ 	if def.PickupMode == "Prompt" then
+diff --git a/src/server/Services/ResourceService.luau b/src/server/Services/ResourceService.luau
+index 998124f..aeb7712 100644
+--- a/src/server/Services/ResourceService.luau
++++ b/src/server/Services/ResourceService.luau
+@@ -516,6 +516,13 @@ function ResourceService.Start()
+ 			player:SetAttribute(def.Attribute, "")
+ 		end
+ 	end
++	-- Salin template ke ReplicatedStorage SEJAK AWAL, bukan menunggu Activate pertama. Client hanya menunggu
++	-- template sebentar (ASSET_WAIT_TIMEOUT); pemain yang bergabung lebih dulu tidak boleh kehabisan waktu
++	-- hanya karena pemain lain belum bicara ke NPC. Idempoten: Activate memanggil ensureAsset lagi.
++	for setId, def in Config.Sets do
++		ensureAsset(setId, def)
++	end
++
+ 	Players.PlayerAdded:Connect(onPlayerAdded)
+ 	Players.PlayerRemoving:Connect(function(player: Player)
+ 		playerSets[player] = nil

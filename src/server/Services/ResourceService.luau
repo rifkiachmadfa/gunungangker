@@ -516,6 +516,13 @@ function ResourceService.Start()
 			player:SetAttribute(def.Attribute, "")
 		end
 	end
+	-- Salin template ke ReplicatedStorage SEJAK AWAL, bukan menunggu Activate pertama. Client hanya menunggu
+	-- template sebentar (ASSET_WAIT_TIMEOUT); pemain yang bergabung lebih dulu tidak boleh kehabisan waktu
+	-- hanya karena pemain lain belum bicara ke NPC. Idempoten: Activate memanggil ensureAsset lagi.
+	for setId, def in Config.Sets do
+		ensureAsset(setId, def)
+	end
+
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		playerSets[player] = nil
