@@ -79,7 +79,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
 - Ibu Warung: "Kalau mau minum dan makan, bantu ibu kumpulkan ranting dulu."
 - Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
 - Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
-- **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain cukup MENDEKAT (server mendeteksi, radius `PickupRadius`) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting yang terambil masuk inventory sebagai SATU Tool stack `Ranting xN` di Backpack (DEC-013/014); saat diserahkan, 10 ranting dikonsumsi dari inventory.
+- **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain mendekati titik ranting lalu MENAHAN ProximityPrompt "Ambil" selama 12 detik (`ResourceConfig...Prompt.HoldDuration`; durasi divalidasi server, DEC-015) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting yang terambil masuk inventory sebagai SATU Tool stack `Ranting xN` di Backpack (DEC-013/014); saat diserahkan, 10 ranting dikonsumsi dari inventory.
 
 ### CP2 — Hutan Bambu
 `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
@@ -152,6 +152,7 @@ Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, Branch
 - `NPC_Warung` (Model NPC Ibu Warung, di Workspace; berisi ProximityPrompt untuk dialog). Dipakai `DialogueService` (dicari rekursif berdasarkan nama).
 - `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_1…` (Part titik spawn ranting; 20 titik).
 - `ServerStorage.QuestModels.Ranting` (template model ranting).
+- Part titik spawn menerima child `ProximityPrompt` bernama `ResourcePrompt` (dibuat server saat quest pertama kali diterima; tidak ada Part/aset baru).
 - `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool ranting untuk Backpack; harus Tool dengan `Handle`). Nama dan lokasi dari pengguna, belum diverifikasi.
 
 ## 12. Tags & Attributes
@@ -167,10 +168,12 @@ Konvensi yang sudah dipakai script (dipasang manual di Studio; belum diaudit ter
 | Attribute `Quest_<QuestId>_State` (string), `Quest_<QuestId>_Progress` (number) | Player (ditulis server) | State quest personal: None/Active/ReadyToTurnIn/Completed; untuk HUD/notifikasi nanti |
 | Attribute `Item_<ItemId>` (number, mis. `Item_Ranting`) | Player (ditulis server) | Jumlah item stackable; client read-only (untuk HUD/Backpack kustom) |
 | Attribute `ItemId` (string), `Count` (number) | Tool di Backpack (ditulis server) | Identitas dan jumlah stack; jumlah asli ada di server, bukan di Tool |
+| Instance `ResourcePrompt` (ProximityPrompt) | Child tiap Part titik spawn (dibuat server) | Tahan 12 dtk untuk mengambil ranting. Server menyala untuk semua; client menyembunyikan lokal prompt titik yang tidak aktif untuk pemain itu (kosmetik; server menolak bila tidak aktif) |
 | Runtime: `ReplicatedStorage.QuestAssets.<AssetName>` | Salinan template dari `ServerStorage` (dibuat server) | Agar client bisa menggambar resource; template asli tidak diubah |
 | Runtime (client): `Workspace.LocalResources` | Folder lokal client | Klon visual resource milik pemain lokal saja |
 
 ## 13. Remotes
+Catatan: pengambilan ranting via ProximityPrompt memakai event engine (`PromptButtonHoldBegan/Ended`, `Triggered`) yang diterima server; BUKAN Remote kustom (DEC-015).
 Prinsip: client mengirim intent, server memvalidasi dan membalas state. Tiap Remote wajib rate-limit.
 Semua RemoteEvent dibuat server lewat `src/shared/Remotes.luau` di `ReplicatedStorage.Remotes` (runtime, bukan mapping Rojo). Client: `Remotes.Get(name)` menunggu server.
 

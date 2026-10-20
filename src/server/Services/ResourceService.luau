@@ -15,6 +15,13 @@
 	    yang menghitung progres.
 	  - Bila set punya ItemId, item masuk inventory (InventoryService) SEBELUM OnCollected dipanggil.
 	    Stack penuh / template Tool hilang = resource tidak terambil dan tetap di dunia.
+	  - PickupMode "Prompt" (ranting CP1): pengambilan lewat ProximityPrompt TAHAN (Prompt.HoldDuration) yang
+	    dibuat server di tiap Part titik spawn (nama "ResourcePrompt"). Server memvalidasi: titik aktif untuk
+	    pemain itu, hold benar-benar dimulai (PromptButtonHoldBegan) dan berlangsung >= HoldDuration (diukur
+	    SERVER, bukan engine), karakter hidup, dan jarak. Client hanya menyembunyikan prompt titik yang tidak
+	    aktif untuk dirinya (ResourceRenderer); itu kosmetik, bukan keamanan. Tidak ada Remote baru.
+	    Mode "Proximity" (default): deteksi jarak otomatis seperti semula.
+	  - Template berupa Tool diubah menjadi Model saat disalin ke ReplicatedStorage agar client bisa menggambarnya.
 
 	Template model: ServerStorage/<TemplatePath> disalin (klon) ke ReplicatedStorage/<AssetsFolder>/<AssetName>
 	saat Activate pertama; asli tidak diubah. Bila template atau titik spawn tidak ditemukan, Activate
@@ -41,6 +48,10 @@ local ServerRoot = (script.Parent :: Instance).Parent :: Instance
 local Interaction = require(ServerRoot:WaitForChild("Util"):WaitForChild("Interaction") :: ModuleScript) :: any
 local InventoryService = require((script.Parent :: Instance):WaitForChild("InventoryService") :: ModuleScript) :: any
 
+local PROMPT_NAME: string = Config.PromptName
+-- Toleransi (detik) Triggered datang TERLAMBAT setelah HoldBegan; Triggered sah tiba tepat setelah hold selesai.
+local MAX_HOLD_OVERRUN = 10
+
 local ResourceService = {}
 
 type SetState = {
@@ -60,6 +71,14 @@ local pools: { [string]: PointPool } = {}
 local playerSets: { [Player]: { [string]: SetState } } = {}
 local collectedCallbacks: { CollectedCallback } = {}
 local started = false
+
+type HoldRecord = {
+	Prompt: ProximityPrompt,
+	StartedAt: number,
+}
+-- Satu hold aktif per pemain; waktu mulai diukur server saat PromptButtonHoldBegan.
+local holds: { [Player]: HoldRecord } = {}
+local promptsBound: { [string]: boolean } = {}
 
 --------------------------------------------------------------------------------
 -- Util
@@ -131,6 +150,22 @@ local function getPool(setId: string, def: any): PointPool?
 end
 
 -- Salin template ke ReplicatedStorage agar client bisa menggambarnya.
+local function toolToModel(tool: Tool): Model
+	local model = Instance.new("Model")
+	model.Name = tool.Name
+	for _, child in tool:GetChildren() do
+		if not child:IsA("BaseScript") then
+			child.Parent = model
+		end
+	end
+	local handle = model:FindFirstChild("Handle")
+	if handle ~= nil and handle:IsA("BasePart") then
+		model.PrimaryPart = handle
+	end
+	tool:Destroy()
+	return model
+end
+
 local function ensureAsset(setId: string, def: any): boolean
 	local folder = ReplicatedStorage:FindFirstChild(Config.AssetsFolder)
 	if folder == nil then
@@ -149,7 +184,10 @@ local function ensureAsset(setId: string, def: any): boolean
 		warn(`[ResourceService] Template ServerStorage.{pathText(def.TemplatePath)} tidak ditemukan (set {setId}).`)
 		return false
 	end
-	local copy = template:Clone()
+	local copy: Instance = template:Clone()
+	if copy:IsA("Tool") then
+		copy = toolToModel(copy) -- Tool bukan PVInstance; client perlu Model/BasePart
+	end
 	copy.Name = def.AssetName
 	copy.Parent = assets
 	return true
@@ -225,6 +263,110 @@ local function collect(player: Player, setId: string, def: any, state: SetState,
 	end
 end
 
+--------------------------------------------------------------------------------
+-- Pengambilan via ProximityPrompt tahan (PickupMode = "Prompt")
+--------------------------------------------------------------------------------
+
+local function debugReject(player: Player, setId: string, pointName: string, reason: string)
+	if Config.Debug then
+		print(`[ResourceService] Prompt ditolak: {player.Name} {setId}/{pointName}: {reason}`)
+	end
+end
+
+local function holdNeeded(promptDef: any): number
+	return math.max(0, promptDef.HoldDuration - promptDef.HoldTolerance)
+end
+
+local function onHoldBegan(player: Player, prompt: ProximityPrompt)
+	holds[player] = { Prompt = prompt, StartedAt = os.clock() }
+end
+
+local function onHoldEnded(player: Player, prompt: ProximityPrompt, promptDef: any)
+	local hold = holds[player]
+	if hold == nil or hold.Prompt ~= prompt then
+		return
+	end
+	-- Dilepas sebelum waktunya = batal. Dilepas setelah selesai dibiarkan: Triggered bisa tiba
+	-- sebelum atau sesudah event ini, dan akan mengonsumsi catatan hold.
+	if os.clock() - hold.StartedAt < holdNeeded(promptDef) then
+		holds[player] = nil
+	end
+end
+
+local function onPromptTriggered(player: Player, setId: string, def: any, prompt: ProximityPrompt, pointName: string)
+	local hold = holds[player]
+	holds[player] = nil -- satu hold = satu percobaan ambil
+
+	local sets = playerSets[player]
+	local state = if sets ~= nil then sets[setId] else nil
+	if state == nil or not state.Active[pointName] then
+		return debugReject(player, setId, pointName, "titik tidak aktif untuk pemain ini")
+	end
+	if hold == nil or hold.Prompt ~= prompt then
+		return debugReject(player, setId, pointName, "tidak ada hold yang dimulai pada prompt ini (HoldBegan tidak diterima)")
+	end
+
+	local promptDef = def.Prompt
+	local elapsed = os.clock() - hold.StartedAt
+	if elapsed < holdNeeded(promptDef) then
+		return debugReject(player, setId, pointName, `tahan terlalu singkat ({string.format("%.1f", elapsed)} dtk)`)
+	end
+	if elapsed > promptDef.HoldDuration + MAX_HOLD_OVERRUN then
+		return debugReject(player, setId, pointName, "hold kedaluwarsa")
+	end
+
+	local root = Interaction.GetAliveRoot(player)
+	local position = Interaction.GetPromptPosition(prompt)
+	if root == nil or position == nil then
+		return debugReject(player, setId, pointName, "karakter tidak hidup / posisi prompt tidak ada")
+	end
+	if (root.Position - position).Magnitude > prompt.MaxActivationDistance + promptDef.DistanceTolerance then
+		return debugReject(player, setId, pointName, "terlalu jauh")
+	end
+
+	collect(player, setId, def, state, pointName)
+end
+
+-- Buat (sekali per set) satu prompt di tiap Part titik spawn dan sambungkan event-nya.
+local function ensurePrompts(setId: string, def: any, pool: PointPool)
+	if def.PickupMode ~= "Prompt" or promptsBound[setId] then
+		return
+	end
+	promptsBound[setId] = true
+
+	local promptDef = def.Prompt
+	for _, part in pool.List do
+		local existing = part:FindFirstChild(PROMPT_NAME)
+		local prompt: ProximityPrompt
+		if existing ~= nil and existing:IsA("ProximityPrompt") then
+			prompt = existing
+		else
+			prompt = Instance.new("ProximityPrompt")
+			prompt.Name = PROMPT_NAME
+		end
+		-- Config sebagai sumber kebenaran. Enabled tetap true di server; client menyembunyikan secara lokal
+		-- prompt titik yang tidak aktif untuk dirinya (server tetap menolak pengambilan titik tidak aktif).
+		prompt.ActionText = promptDef.ActionText
+		prompt.ObjectText = promptDef.ObjectText
+		prompt.HoldDuration = promptDef.HoldDuration
+		prompt.MaxActivationDistance = promptDef.MaxActivationDistance
+		prompt.RequiresLineOfSight = promptDef.RequiresLineOfSight
+		prompt.Enabled = true
+		prompt.Parent = part
+
+		local pointName = part.Name
+		prompt.PromptButtonHoldBegan:Connect(function(player: Player)
+			onHoldBegan(player, prompt)
+		end)
+		prompt.PromptButtonHoldEnded:Connect(function(player: Player)
+			onHoldEnded(player, prompt, promptDef)
+		end)
+		prompt.Triggered:Connect(function(player: Player)
+			onPromptTriggered(player, setId, def, prompt, pointName)
+		end)
+	end
+end
+
 local function step()
 	for player, sets in playerSets do
 		local root = Interaction.GetAliveRoot(player)
@@ -235,8 +377,8 @@ local function step()
 		for setId, state in sets do
 			local def = Config.Sets[setId]
 			local pool = pools[setId]
-			if pool == nil then
-				continue
+			if pool == nil or def.PickupMode == "Prompt" then
+				continue -- mode Prompt: pengambilan lewat ProximityPrompt, bukan jarak otomatis
 			end
 			-- Salinan daftar: state.Active berubah selama iterasi.
 			local names: { string } = {}
@@ -284,6 +426,20 @@ function ResourceService.Activate(player: Player, setId: string): (boolean, stri
 			return false, "template Tool item tidak ditemukan"
 		end
 	end
+	if def.PickupMode == "Prompt" then
+		local p = def.Prompt
+		if type(p) ~= "table" or type(p.HoldDuration) ~= "number" or p.HoldDuration <= 0 then
+			return false, "PickupMode 'Prompt' butuh Prompt.HoldDuration > 0"
+		end
+		if type(p.HoldTolerance) ~= "number" or p.HoldTolerance < 0 or p.HoldTolerance >= p.HoldDuration then
+			return false, "Prompt.HoldTolerance harus >= 0 dan < HoldDuration"
+		end
+		if type(p.MaxActivationDistance) ~= "number" or p.MaxActivationDistance <= 0 or type(p.DistanceTolerance) ~= "number" or p.DistanceTolerance < 0 then
+			return false, "Prompt.MaxActivationDistance harus > 0 dan DistanceTolerance >= 0"
+		end
+	elseif def.PickupMode ~= nil and def.PickupMode ~= "Proximity" then
+		return false, `PickupMode '{tostring(def.PickupMode)}' tidak dikenal`
+	end
 	if not ensureAsset(setId, def) then
 		return false, "template resource tidak ditemukan"
 	end
@@ -291,6 +447,7 @@ function ResourceService.Activate(player: Player, setId: string): (boolean, stri
 	if pool == nil then
 		return false, "titik spawn tidak ditemukan"
 	end
+	ensurePrompts(setId, def, pool)
 
 	local state: SetState = { Active = {}, Count = 0 }
 	sets[setId] = state
@@ -362,6 +519,7 @@ function ResourceService.Start()
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		playerSets[player] = nil
+		holds[player] = nil
 	end)
 	for _, player in Players:GetPlayers() do
 		onPlayerAdded(player)

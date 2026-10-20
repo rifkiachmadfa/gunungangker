@@ -9,7 +9,9 @@
 	- Template diambil dari ReplicatedStorage.<AssetsFolder>.<AssetName> (disalin server dari ServerStorage).
 	- Klon dibuat tidak bertabrakan: Anchored, CanCollide/CanTouch/CanQuery = false; Script,
 	  ProximityPrompt, ClickDetector di dalam klon dihapus (pengambilan murni urusan server).
-	- Pengambilan tidak memakai input: server mendeteksi pemain mendekat.
+	- Pengambilan murni urusan server. Mode "Proximity": server mendeteksi pemain mendekat. Mode "Prompt":
+	  server membuat ProximityPrompt tahan di Part titik spawn; client HANYA menyembunyikan (lokal) prompt
+	  titik yang tidak aktif untuk pemain ini. Itu kosmetik: server tetap menolak titik tidak aktif.
 
 	API: ResourceRenderer.Start(player)
 ]]
@@ -66,6 +68,24 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
 
 	local rendered: { [string]: Instance } = {}
 	local warned: { [string]: boolean } = {}
+	local wantedNow: { [string]: boolean } = {}
+
+	-- Mode "Prompt": prompt hanya aktif di titik yang aktif untuk pemain lokal.
+	local function syncPrompts()
+		if def.PickupMode ~= "Prompt" then
+			return
+		end
+		local folder = resolvePath(Workspace, def.SpawnerFolder)
+		if folder == nil then
+			return
+		end
+		for _, part in folder:GetChildren() do
+			local prompt = part:FindFirstChild(Config.PromptName)
+			if prompt ~= nil and prompt:IsA("ProximityPrompt") then
+				prompt.Enabled = wantedNow[part.Name] == true
+			end
+		end
+	end
 
 	local function findSpawner(name: string): BasePart?
 		local folder = resolvePath(Workspace, def.SpawnerFolder)
@@ -118,10 +138,37 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
 				create(name)
 			end
 		end
+
+		wantedNow = wanted
+		syncPrompts()
 	end
 
 	player:GetAttributeChangedSignal(def.Attribute):Connect(apply)
 	apply()
+
+	-- Prompt dibuat server saat quest diterima dan bisa tiba di client sesudah attribute: sinkronkan lagi
+	-- setiap kali prompt baru muncul. Folder titik spawn ditunggu (bukan diasumsikan sudah ada).
+	if def.PickupMode == "Prompt" then
+		task.spawn(function()
+			local current: Instance? = Workspace
+			for _, name in def.SpawnerFolder do
+				if current == nil then
+					return
+				end
+				current = current:WaitForChild(name, ASSET_WAIT_TIMEOUT)
+			end
+			if current == nil then
+				warn(`[ResourceRenderer] Folder spawner tidak ditemukan di client (set {setId}); prompt tidak disinkronkan.`)
+				return
+			end
+			current.DescendantAdded:Connect(function(descendant: Instance)
+				if descendant.Name == Config.PromptName then
+					syncPrompts()
+				end
+			end)
+			syncPrompts()
+		end)
+	end
 end
 
 function ResourceRenderer.Start(player: Player)

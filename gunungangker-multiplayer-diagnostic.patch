@@ -1,0 +1,79 @@
+diff --git a/src/server/Services/DialogueService.luau b/src/server/Services/DialogueService.luau
+index 861b159..0f18ad6 100644
+--- a/src/server/Services/DialogueService.luau
++++ b/src/server/Services/DialogueService.luau
+@@ -69,6 +69,15 @@ local warnedActions: { [string]: boolean } = {}
+ local nextSessionId = 0
+ local started = false
+ 
++-- SEMENTARA: log diagnosis bug multiplayer CP1. Matikan (false) setelah bug ditutup.
++local TRACE = true
++
++local function trace(message: string)
++	if TRACE then
++		print(`[DialogueService][trace] {message}`)
++	end
++end
++
+ local showRemote: RemoteEvent
+ local endRemote: RemoteEvent
+ local respondRemote: RemoteEvent
+@@ -251,30 +260,37 @@ end
+ local function onTriggered(npcId: string, player: Player)
+ 	local last = lastStart[player]
+ 	if last == nil then
++		trace(`{player.Name}: Triggered '{npcId}' ditolak, lastStart nil (pemain belum terdaftar)`)
+ 		return -- pemain sudah keluar
+ 	end
+ 	local now = os.clock()
+ 	if now - last < Config.StartCooldown then
++		trace(`{player.Name}: Triggered '{npcId}' ditolak, cooldown`)
+ 		return
+ 	end
+ 
+ 	local binding = bindings[npcId]
+ 	local npcDef = Config.Npcs[npcId]
+ 	if binding == nil or npcDef == nil then
++		trace(`{player.Name}: Triggered '{npcId}' ditolak, binding/config NPC nil`)
+ 		return
+ 	end
+ 
+ 	-- Jangan percaya client: Triggered bisa dipanggil exploit dari jauh.
+ 	local root = Interaction.GetAliveRoot(player)
+ 	if root == nil then
++		trace(`{player.Name}: Triggered '{npcId}' ditolak, karakter tidak hidup`)
+ 		return
+ 	end
+ 	local promptPosition = Interaction.GetPromptPosition(binding.Prompt)
+ 	if promptPosition == nil then
++		trace(`{player.Name}: Triggered '{npcId}' ditolak, posisi prompt nil`)
+ 		return
+ 	end
+ 	local maxDistance = binding.Prompt.MaxActivationDistance + Config.StartTolerance
+-	if (root.Position - promptPosition).Magnitude > maxDistance then
++	local distance = (root.Position - promptPosition).Magnitude
++	if distance > maxDistance then
++		trace(`{player.Name}: Triggered '{npcId}' ditolak, jarak {math.floor(distance)} > {maxDistance}`)
+ 		return
+ 	end
+ 
+@@ -304,6 +320,7 @@ local function onTriggered(npcId: string, player: Player)
+ 		LastActivity = now,
+ 	}
+ 	sessions[player] = session
++	trace(`{player.Name}: dialog '{npcId}' mulai di node '{startId}' (sesi {session.Id})`)
+ 	enterNode(player, session, startId)
+ end
+ 
+diff --git a/src/server/Services/QuestService.luau b/src/server/Services/QuestService.luau
+index 5d8b0b1..7c53d96 100644
+--- a/src/server/Services/QuestService.luau
++++ b/src/server/Services/QuestService.luau
+@@ -104,6 +104,7 @@ function QuestService.Accept(player: Player, questId: string): boolean
+ 	local def = quests[questId]
+ 	local entry = getEntry(player, questId)
+ 	if def == nil or entry == nil or entry.State ~= "None" then
++		log(`Accept {questId} ditolak untuk {player.Name}: def={def ~= nil}, entry={entry ~= nil}, state={if entry ~= nil then entry.State else "nil"}`)
+ 		return false
+ 	end
+ 
