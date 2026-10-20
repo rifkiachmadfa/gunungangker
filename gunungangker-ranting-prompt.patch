@@ -1,0 +1,350 @@
+diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
+index fe66190..6bd4d24 100644
+--- a/.ai/CHANGELOG.md
++++ b/.ai/CHANGELOG.md
+@@ -35,3 +35,9 @@
+ - Sistem terdampak: Resource, Quest, bootstrap server. Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
+ - File/skrip: `src/shared/ItemConfig.luau` (baru), `src/server/Services/InventoryService.luau` (baru), `src/shared/ResourceConfig.luau`, `src/server/Services/ResourceService.luau`, `src/server/Services/QuestService.luau`, `src/server/init.server.luau`, `.ai/*`.
+ - Hasil test: sintaks Luau OK, `rojo build` 7.7.1 OK, 50 kasus uji mock (modul asli Resource/Quest/Interaction/config; hanya DialogueService di-stub) lulus 40 kali berturut-turut, dan 15 mutasi sengaja semuanya tertangkap. Mock bukan Roblox sungguhan. TIDAK dilakukan: type-check strict Luau; uji Studio dengan Tool asli, respawn nyata, multiplayer.
++
++## 2026-10-20 — Tombol ambil ranting (PickupMode "Prompt")
++- Perubahan: ranting CP1 kini diambil dengan menekan tombol (ProximityPrompt buatan client) pada resource aktif milik pemain itu, bukan otomatis saat mendekat. Tombol tidak ada sebelum quest diterima, hilang setelah terambil, dan tidak muncul lagi setelah Target tercapai/quest selesai. Hanya 10 dari 20 spawner aktif (ActiveCount); titik pengganti muncul di spawner berbeda setelah `RespawnDelay` (aturan ini sudah ada sebelumnya). `PickupMode = "Proximity"` (perilaku lama) tetap tersedia per set.
++- Sistem terdampak: Resource (server + client + config). Remote baru: `ResourceCollect` (C→S, kontrak di GAME_CONTEXT §13). Tidak ada perubahan mapping Rojo, Quest, Inventory, maupun Dialogue.
++- File/skrip: `src/shared/ResourceConfig.luau`, `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
++- Hasil test: `luau-compile` OK untuk 3 file; analyzer polos tanpa definisi tipe Roblox tidak menambah error kecuali `RemoteEvent` tak dikenal (kelas sama dengan `BasePart`/`Folder` di baseline). 26 uji mock (ResourceService + ResourceConfig ASLI, Roblox di-mock) lulus, 7 dari 8 mutasi validasi tertangkap (1 setara secara perilaku). Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio, tampilan/posisi tombol pada model asli, uji multiplayer nyata.
+diff --git a/.ai/CURRENT_STATE.md b/.ai/CURRENT_STATE.md
+index 18d274c..c878fd6 100644
+--- a/.ai/CURRENT_STATE.md
++++ b/.ai/CURRENT_STATE.md
+@@ -1,14 +1,14 @@
+ # CURRENT STATE
+ 
+-Last updated: 2026-10-18
++Last updated: 2026-10-20
+ Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
+-Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) belum di-commit (diserahkan sebagai patch)
++Branch: main (HEAD 947188c "quest 1" saat audit 2026-10-20; Inventory stackable sudah ter-commit)
+ 
+ ## Working systems
+ - Hunger/Thirst + HUD: TERIMPLEMENTASI, BELUM TERUJI di Studio (lihat CHANGELOG untuk tes yang sudah dilakukan).
+ - Konsumsi makanan/minuman (tag Food/Drink): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh objek ber-tag di Studio.
+ - Dialogue System (NPC_Warung): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh NPC_Warung + ProximityPrompt di Workspace.
+-- Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
++- Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Pengambilan lewat TOMBOL (`PickupMode = "Prompt"`, Remote `ResourceCollect`, DEC-015): tombol hanya pada 10 resource aktif milik pemain itu dan baru ada setelah menerima quest. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
+ - Inventory stackable (`InventoryService` + `ItemConfig`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Ranting yang terambil (`ResourceConfig...ItemId`) masuk sebagai SATU Tool `Ranting xN` di Backpack; `QuestService.TurnIn` mengonsumsi `Target` item. Butuh `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool, dengan `Handle`). Lulus 50 uji mock di luar Roblox (lihat CHANGELOG).
+ 
+ ## Incomplete systems
+diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
+index 4edf601..dcb25b2 100644
+--- a/.ai/DECISIONS.md
++++ b/.ai/DECISIONS.md
+@@ -99,3 +99,11 @@
+ - Keputusan: set resource boleh punya `ItemId` (opsional). Saat terambil, `ResourceService` memanggil `InventoryService.AddItem` SEBELUM `OnCollected` (QuestService selalu melihat inventory yang sudah konsisten). Bila stack penuh atau template Tool hilang, resource TIDAK terambil: tetap di dunia dan progres quest tidak maju (dicoba lagi pada pemeriksaan berikutnya). `Activate` gagal lebih awal (quest tidak dimulai, warning) bila `ItemId` tidak ada di `ItemConfig` atau template Tool tidak ditemukan. `QuestService.TurnIn` mengonsumsi `Target` item dari inventory secara atomik; jika kurang, TurnIn ditolak dan state tidak berubah. Tanpa `ItemId`, perilaku lama tetap (kompatibel).
+ - Alasan: DEC-004/012 sudah menyediakan resource personal; yang kurang hanya penghubung ke inventory. Tidak ada Remote baru, tidak ada sistem pickup paralel.
+ - Risiko: dialog node "serah" tetap tampil walau `TurnIn` menolak (kasus tak normal: item kurang). Tidak ada notifikasi "stack penuh" sampai Notification System ada. Quest tetap menghitung progres sendiri (`Quest_<id>_Progress`); inventory dan progres bisa berbeda hanya jika pemain memakai/menyerahkan item lewat jalur lain (belum ada).
++
++## DEC-015 — Pengambilan resource lewat tombol (ProximityPrompt client) + Remote `ResourceCollect`
++- Tanggal: 2026-10-20
++- Konteks: instruksi pengguna: tombol ambil ranting tidak boleh terlihat sebelum pemain menerima quest dari NPC; hanya 10 dari 20 spawner yang punya tombol; setelah satu diambil, tombol pindah ke spawner lain; setelah quest selesai ranting tidak bisa diambil lagi. Sebelumnya (DEC-012) pengambilan otomatis saat pemain mendekat, tanpa tombol.
++- Keputusan: `ResourceConfig.Sets[x].PickupMode` = `"Prompt"` (baru, dipakai `RantingCP1`) atau `"Proximity"` (perilaku lama, tetap tersedia). Mode Prompt: `ResourceRenderer` memasang ProximityPrompt buatan client pada setiap klon resource aktif milik pemain lokal; menekan tombol mengirim `ResourceCollect(setId, pointName)`; `ResourceService` memvalidasi semuanya di server (lihat GAME_CONTEXT §13) lalu memakai jalur `collect` yang sama (inventory → OnCollected → respawn di titik berbeda). Deteksi jarak otomatis dilewati untuk set mode Prompt. Aturan 10-aktif-dari-20, respawn di titik berbeda, dan penghentian saat Target tercapai TIDAK berubah (sudah ada sejak DEC-012).
++- Alasan: tombol hanya ada selama titik ada di attribute personal pemain, jadi otomatis tidak terlihat sebelum quest diterima, setelah terambil, dan setelah quest selesai. Prompt dibuat di client karena resource digambar lokal per pemain (pemain lain tidak melihatnya); server yang menentukan hasil.
++- Alternatif ditolak: ProximityPrompt di Part spawner server-side (terlihat oleh semua pemain; `Enabled` global; tidak personal).
++- Risiko: tombol muncul sedikit terlambat setelah attribute tereplikasi; jarak validasi server memakai posisi Part spawner (bukan model klon), karena itu ada `PromptTolerance`. Client yang dimodifikasi hanya bisa mengirim request ke titik aktif miliknya sendiri dalam jangkauan.
+diff --git a/.ai/GAME_CONTEXT.md b/.ai/GAME_CONTEXT.md
+index 1f570f3..47f7a50 100644
+--- a/.ai/GAME_CONTEXT.md
++++ b/.ai/GAME_CONTEXT.md
+@@ -179,9 +179,10 @@ Semua RemoteEvent dibuat server lewat `src/shared/Remotes.luau` di `ReplicatedSt
+ | `DialogueShow` | S→C | `payload { SessionId:number, Speaker:string, Text:string, Choices:{string}?, IsLast:boolean }` | DialogueService | — (dikirim hanya ke pemain pemilik sesi) |
+ | `DialogueEnd` | S→C | `sessionId:number, reason:string` (`Finished`/`Cancelled`/`TooFar`/`Dead`/`NpcGone`/`Idle`/`Replaced`/`InvalidNode`/`Ended`) | DialogueService | — |
+ | `DialogueRespond` | C→S | `sessionId:number, kind:"Advance"\|"Choose"\|"Cancel", index:number?` | DialogueService | tipe argumen, sessionId cocok, `RespondInterval` (Advance/Choose; Cancel bebas), indeks bulat 1..jumlah pilihan, jenis sesuai node, jarak/hidup |
++| `ResourceCollect` | C→S | `setId:string, pointName:string` | ResourceService | tipe argumen (string, nama ≤ 64), `CollectInterval` per pemain, set aktif UNTUK pemain itu, titik ada di daftar aktif pemain itu, `PickupMode == "Prompt"`, pemain hidup, jarak ≤ `PromptDistance + PromptTolerance` dan selisih tinggi ≤ `VerticalTolerance` |
+ 
+ Remote Dialogue hanya membawa teks dan intent; progres quest tidak pernah dikirim client.
+-Quest/Resource TIDAK memakai Remote: pengambilan dideteksi server (posisi pemain), state direplikasi lewat Player attribute (§12).
++`ResourceCollect` hanya membawa intent "saya menekan tombol ambil di titik ini"; hasil (terambil atau tidak) ditentukan server. Quest tidak memakai Remote sendiri; state direplikasi lewat Player attribute (§12). Resource dengan `PickupMode = "Proximity"` tidak memakai Remote (server mendeteksi jarak).
+ 
+ ## 14. Ending
+ - Menang: serahkan 5 sesajen di Summit Gate → Summit +1 (SummitCount di profil).
+diff --git a/src/client/Controllers/ResourceRenderer.luau b/src/client/Controllers/ResourceRenderer.luau
+index ec759dc..d7f942e 100644
+--- a/src/client/Controllers/ResourceRenderer.luau
++++ b/src/client/Controllers/ResourceRenderer.luau
+@@ -8,8 +8,12 @@
+ 	  di client ini, jadi pemain lain tidak melihat resource Anda).
+ 	- Template diambil dari ReplicatedStorage.<AssetsFolder>.<AssetName> (disalin server dari ServerStorage).
+ 	- Klon dibuat tidak bertabrakan: Anchored, CanCollide/CanTouch/CanQuery = false; Script,
+-	  ProximityPrompt, ClickDetector di dalam klon dihapus (pengambilan murni urusan server).
+-	- Pengambilan tidak memakai input: server mendeteksi pemain mendekat.
++	  ProximityPrompt, ClickDetector bawaan template di dalam klon dihapus.
++	- PickupMode "Prompt": tiap klon (= resource aktif milik pemain lokal) diberi ProximityPrompt buatan
++	  client. Tombol hanya ada selama resource ada di attribute, jadi hilang otomatis sebelum quest
++	  diterima, setelah terambil, dan setelah quest selesai. Menekan tombol hanya mengirim intent
++	  (setId, pointName) ke server (Remote ResourceCollect); server yang memutuskan.
++	- PickupMode "Proximity": tanpa tombol; server mendeteksi pemain mendekat.
+ 
+ 	API: ResourceRenderer.Start(player)
+ ]]
+@@ -18,6 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
+ local Workspace = game:GetService("Workspace")
+ 
+ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ResourceConfig") :: ModuleScript) :: any
++local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes") :: ModuleScript) :: any
+ 
+ local ASSET_WAIT_TIMEOUT = 30
+ local LOCAL_FOLDER_NAME = "LocalResources"
+@@ -56,6 +61,18 @@ local function sanitize(clone: Instance)
+ 	end
+ end
+ 
++local RETRY_DELAY = 0.5 -- tombol aktif lagi bila server menolak (mis. stack penuh)
++
++local function findAnchor(model: Instance): BasePart?
++	if model:IsA("BasePart") then
++		return model
++	end
++	if model:IsA("Model") then
++		return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
++	end
++	return nil
++end
++
+ local function bindSet(player: Player, setId: string, def: any, container: Folder)
+ 	local assets = ReplicatedStorage:WaitForChild(Config.AssetsFolder, ASSET_WAIT_TIMEOUT)
+ 	local template = if assets ~= nil then assets:WaitForChild(def.AssetName, ASSET_WAIT_TIMEOUT) else nil
+@@ -66,6 +83,39 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
+ 
+ 	local rendered: { [string]: Instance } = {}
+ 	local warned: { [string]: boolean } = {}
++	local collectRemote: RemoteEvent? = nil
++	if def.PickupMode == "Prompt" then
++		collectRemote = Remotes.Get(Config.CollectRemote)
++	end
++
++	local function attachPrompt(model: Instance, name: string)
++		local remote = collectRemote
++		if remote == nil then
++			return
++		end
++		local anchor = findAnchor(model)
++		if anchor == nil then
++			warn(`[ResourceRenderer] Template '{def.AssetName}' tidak punya BasePart untuk tombol ambil (set {setId}).`)
++			return
++		end
++		local prompt = Instance.new("ProximityPrompt")
++		prompt.Name = "CollectPrompt"
++		prompt.ActionText = def.PromptActionText
++		prompt.ObjectText = def.PromptObjectText
++		prompt.HoldDuration = def.PromptHoldDuration
++		prompt.MaxActivationDistance = def.PromptDistance
++		prompt.RequiresLineOfSight = false
++		prompt.Parent = anchor
++		prompt.Triggered:Connect(function()
++			prompt.Enabled = false -- cegah tekan ganda sampai server menjawab (klon dihapus bila berhasil)
++			remote:FireServer(setId, name)
++			task.delay(RETRY_DELAY, function()
++				if prompt.Parent ~= nil then
++					prompt.Enabled = true
++				end
++			end)
++		end)
++	end
+ 
+ 	local function findSpawner(name: string): BasePart?
+ 		local folder = resolvePath(Workspace, def.SpawnerFolder)
+@@ -95,6 +145,7 @@ local function bindSet(player: Player, setId: string, def: any, container: Folde
+ 		model.Name = `{def.AssetName}_{name}`
+ 		model:PivotTo(spawner.CFrame * CFrame.new(def.PlacementOffset))
+ 		model.Parent = container
++		attachPrompt(model, name)
+ 		rendered[name] = model
+ 	end
+ 
+diff --git a/src/server/Services/ResourceService.luau b/src/server/Services/ResourceService.luau
+index 02a7e17..16595a2 100644
+--- a/src/server/Services/ResourceService.luau
++++ b/src/server/Services/ResourceService.luau
+@@ -5,8 +5,12 @@
+ 	Aturan:
+ 	  - Tiap pemain punya set titik aktif sendiri (ActiveCount dari pool titik spawn). Pemain lain tidak
+ 	    melihat atau menghabiskan resource ini.
+-	  - Pengambilan DIDETEKSI SERVER: pemain mendekati titik aktif (PickupRadius) -> terambil otomatis.
+-	    Tidak ada Remote dari client, jadi tidak bisa dipalsukan.
++	  - Pengambilan (PickupMode di ResourceConfig):
++	      "Prompt"    : client menampilkan tombol di resource aktif miliknya; menekan tombol mengirim intent
++	                    (setId, pointName) lewat Remote ResourceCollect. Server memvalidasi: set aktif untuk
++	                    pemain itu, titik ada di daftar aktif pemain itu, pemain hidup dan cukup dekat,
++	                    rate limit. Client tidak pernah menentukan hasil.
++	      "Proximity" : server mendeteksi pemain mendekat (PickupRadius) -> terambil otomatis (tanpa Remote).
+ 	  - Resource terambil -> hilang -> setelah RespawnDelay muncul di titik BERBEDA (bukan titik yang baru
+ 	    diambil, dan bukan titik yang sedang aktif). Jumlah aktif tidak pernah melebihi ActiveCount.
+ 	  - Daftar titik aktif ditulis ke Player attribute (ResourceConfig...Attribute, nama dipisah koma).
+@@ -37,6 +41,7 @@ local Workspace = game:GetService("Workspace")
+ local Shared = ReplicatedStorage:WaitForChild("Shared")
+ local Config = require(Shared:WaitForChild("ResourceConfig") :: ModuleScript) :: any
+ local ItemConfig = require(Shared:WaitForChild("ItemConfig") :: ModuleScript) :: any
++local Remotes = require(Shared:WaitForChild("Remotes") :: ModuleScript) :: any
+ local ServerRoot = (script.Parent :: Instance).Parent :: Instance
+ local Interaction = require(ServerRoot:WaitForChild("Util"):WaitForChild("Interaction") :: ModuleScript) :: any
+ local InventoryService = require((script.Parent :: Instance):WaitForChild("InventoryService") :: ModuleScript) :: any
+@@ -59,6 +64,7 @@ local rng = Random.new()
+ local pools: { [string]: PointPool } = {}
+ local playerSets: { [Player]: { [string]: SetState } } = {}
+ local collectedCallbacks: { CollectedCallback } = {}
++local lastCollectRequest: { [Player]: number } = {}
+ local started = false
+ 
+ --------------------------------------------------------------------------------
+@@ -235,8 +241,8 @@ local function step()
+ 		for setId, state in sets do
+ 			local def = Config.Sets[setId]
+ 			local pool = pools[setId]
+-			if pool == nil then
+-				continue
++			if def == nil or pool == nil or def.PickupMode == "Prompt" then
++				continue -- mode Prompt diproses lewat onCollectRequest, bukan deteksi jarak
+ 			end
+ 			-- Salinan daftar: state.Active berubah selama iterasi.
+ 			local names: { string } = {}
+@@ -260,6 +266,50 @@ local function step()
+ 	end
+ end
+ 
++-- Intent dari client (mode Prompt). Semua argumen tidak dipercaya.
++local function onCollectRequest(player: Player, setId: unknown, pointName: unknown)
++	if type(setId) ~= "string" or type(pointName) ~= "string" or #pointName > 64 then
++		return
++	end
++
++	local now = os.clock()
++	local last = lastCollectRequest[player]
++	if last == nil then
++		return -- pemain sudah keluar
++	end
++	if now - last < Config.CollectInterval then
++		return
++	end
++	lastCollectRequest[player] = now
++
++	local def = Config.Sets[setId]
++	if def == nil or def.PickupMode ~= "Prompt" then
++		return
++	end
++	local sets = playerSets[player]
++	local state = if sets ~= nil then sets[setId] else nil
++	if state == nil or not state.Active[pointName] then
++		return -- set tidak aktif untuk pemain ini (belum menerima quest / sudah selesai) atau titik tidak aktif
++	end
++	local pool = pools[setId]
++	local part = if pool ~= nil then pool.ByName[pointName] else nil
++	if part == nil or part.Parent == nil then
++		return
++	end
++	local root = Interaction.GetAliveRoot(player)
++	if root == nil then
++		return
++	end
++
++	local delta = root.Position - part.Position
++	local horizontal = Vector3.new(delta.X, 0, delta.Z).Magnitude
++	if horizontal > def.PromptDistance + Config.PromptTolerance or math.abs(delta.Y) > def.VerticalTolerance then
++		return
++	end
++
++	collect(player, setId, def, state, pointName)
++end
++
+ --------------------------------------------------------------------------------
+ -- API
+ --------------------------------------------------------------------------------
+@@ -355,6 +405,7 @@ function ResourceService.Start()
+ 
+ 	local function onPlayerAdded(player: Player)
+ 		playerSets[player] = {}
++		lastCollectRequest[player] = -math.huge
+ 		for _, def in Config.Sets do
+ 			player:SetAttribute(def.Attribute, "")
+ 		end
+@@ -362,11 +413,15 @@ function ResourceService.Start()
+ 	Players.PlayerAdded:Connect(onPlayerAdded)
+ 	Players.PlayerRemoving:Connect(function(player: Player)
+ 		playerSets[player] = nil
++		lastCollectRequest[player] = nil
+ 	end)
+ 	for _, player in Players:GetPlayers() do
+ 		onPlayerAdded(player)
+ 	end
+ 
++	local collectRemote = Remotes.Get(Config.CollectRemote)
++	collectRemote.OnServerEvent:Connect(onCollectRequest)
++
+ 	local elapsed = 0
+ 	RunService.Heartbeat:Connect(function(dt: number)
+ 		elapsed += dt
+diff --git a/src/shared/ResourceConfig.luau b/src/shared/ResourceConfig.luau
+index 21b2156..a2a891f 100644
+--- a/src/shared/ResourceConfig.luau
++++ b/src/shared/ResourceConfig.luau
+@@ -22,9 +22,19 @@
+ 	ItemId            : (opsional) id item di ItemConfig yang masuk inventory saat resource terambil. Stack
+ 	                    penuh = resource TIDAK terambil (tetap di dunia, progres quest tidak maju).
+ 	                    Tanpa ItemId, resource hanya memicu OnCollected (perilaku lama).
++	PickupMode        : "Prompt"    = tiap resource aktif punya tombol (ProximityPrompt) di client; pemain
++	                                  menekannya, client mengirim intent ke server, server memvalidasi.
++	                    "Proximity" = otomatis terambil saat pemain mendekat (PickupRadius), tanpa tombol.
++	PromptDistance    : (mode Prompt) jarak maksimum tombol muncul (stud).
++	PromptActionText  : (mode Prompt) teks aksi pada tombol.
++	PromptObjectText  : (mode Prompt) teks objek pada tombol.
++	PromptHoldDuration: (mode Prompt) detik menahan tombol; 0 = sekali tekan.
+ 
+-	CheckInterval : detik antar pemeriksaan pengambilan di server.
+-	AssetsFolder  : nama folder runtime di ReplicatedStorage.
++	CheckInterval   : detik antar pemeriksaan pengambilan di server (mode Proximity).
++	AssetsFolder    : nama folder runtime di ReplicatedStorage.
++	CollectRemote   : nama RemoteEvent C->S untuk mode Prompt (dibuat server lewat Remotes.Get).
++	CollectInterval : detik minimum antar permintaan ambil dari satu pemain (anti-spam).
++	PromptTolerance : toleransi jarak (stud) server di atas PromptDistance (lag/posisi model vs titik spawn).
+ ]]
+ 
+ export type SetDef = {
+@@ -39,17 +49,28 @@ export type SetDef = {
+ 	VerticalTolerance: number,
+ 	PlacementOffset: Vector3,
+ 	ItemId: string?,
++	PickupMode: string,
++	PromptDistance: number,
++	PromptActionText: string,
++	PromptObjectText: string,
++	PromptHoldDuration: number,
+ }
+ 
+ export type Config = {
+ 	CheckInterval: number,
+ 	AssetsFolder: string,
++	CollectRemote: string,
++	CollectInterval: number,
++	PromptTolerance: number,
+ 	Sets: { [string]: SetDef },
+ }
+ 
+ local Config: Config = {
+ 	CheckInterval = 0.1,
+ 	AssetsFolder = "QuestAssets",
++	CollectRemote = "ResourceCollect",
++	CollectInterval = 0.15,
++	PromptTolerance = 4,
+ 
+ 	Sets = {
+ 		-- CP1: 10 ranting aktif dari 20 titik. Nama path dari pengguna, BELUM diverifikasi di Studio.
+@@ -65,6 +86,11 @@ local Config: Config = {
+ 			VerticalTolerance = 8,
+ 			PlacementOffset = Vector3.new(0, 0, 0),
+ 			ItemId = "Ranting",
++			PickupMode = "Prompt",
++			PromptDistance = 8,
++			PromptActionText = "Ambil",
++			PromptObjectText = "Ranting",
++			PromptHoldDuration = 0,
+ 		},
+ 	},
+ }
