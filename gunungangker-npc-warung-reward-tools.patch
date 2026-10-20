@@ -1,0 +1,603 @@
+diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
+index c17802b..5988c63 100644
+--- a/.ai/CHANGELOG.md
++++ b/.ai/CHANGELOG.md
+@@ -48,3 +48,8 @@
+ - File/skrip: `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
+ - Hasil test: `luau-compile` OK. Uji mock renderer (Roblox di-mock, source asli): versi lama gagal 7 dari 8 skenario (client yang menyala sebelum template ada), versi baru lulus 8 dari 8. Uji mock server: template ada sebelum `Activate` pertama (lama: tidak). Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio, uji multiplayer nyata, `rojo build`.
+ 
++## 2026-10-20 (2) — Reward CP1: Tool Air dan Ciki
++- Perubahan: `CP1.TurnIn` memberi Tool Air dan Ciki ke Backpack (`QuestConfig...Rewards`); meng-equip lalu menekan Tool menambah Thirst/Hunger +5 poin (5%) dengan cooldown 5 dtk per item per pemain, divalidasi server (`ConsumableService`, `Tool.Activated`). `InventoryService`: opsi `ShowCount` dan hook `OnToolCreated`. Template reward dicek di Accept dan TurnIn (ranting tidak hilang bila template tidak ada). Teks dialog `QuestDone` menyebut reward.
++- Sistem terdampak: Quest, Inventory, Survival/Consumable, Dialogue (teks saja). Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
++- File/skrip: `src/shared/ItemConfig.luau`, `src/shared/QuestConfig.luau`, `src/shared/SurvivalConfig.luau`, `src/shared/DialogueConfig.luau`, `src/server/Services/InventoryService.luau`, `src/server/Services/ConsumableService.luau`, `src/server/Services/QuestService.luau`, `.ai/*`.
++- Hasil test: `luau-compile` OK untuk 7 file; `luau-analyze` tanpa error baru (satu TypeError di `QuestService` sudah ada di HEAD, akibat tipe Roblox tidak tersedia). Uji mock (Roblox di-mock, modul asli Inventory/Consumable/Survival/Quest; Dialogue dan Resource di-stub): 51 uji lulus; 13 mutasi sengaja (cooldown, cek equip, stat penuh, kepemilikan, cek hidup, cooldown dibagi, jumlah tambah, precheck TurnIn/Accept, reward tidak diberikan, urutan reward vs event Completed, ShowCount, hook OnToolCreated) semuanya tertangkap; skenario config reward salah lulus. Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio (Tool asli, Handle, equip/Activated nyata, mobile), uji multiplayer nyata, `rojo build`.
+diff --git a/.ai/CURRENT_STATE.md b/.ai/CURRENT_STATE.md
+index 093b1bb..824cde8 100644
+--- a/.ai/CURRENT_STATE.md
++++ b/.ai/CURRENT_STATE.md
+@@ -1,6 +1,6 @@
+ # CURRENT STATE
+ 
+-Last updated: 2026-10-18
++Last updated: 2026-10-20
+ Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
+ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) belum di-commit (diserahkan sebagai patch)
+ 
+@@ -10,12 +10,13 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
+ - Dialogue System (NPC_Warung): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh NPC_Warung + ProximityPrompt di Workspace.
+ - Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
+ - Pengambilan ranting via ProximityPrompt TAHAN 12 dtk (`ResourceService` mode `Prompt` + `ResourceRenderer`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Prompt `ResourcePrompt` dibuat server di tiap Part titik spawn; durasi tahan diukur server (HoldBegan→Triggered). Lulus 104/101 uji mock (dua skenario template). Prompt hanya dibuat saat quest pertama kali diterima.
++- Reward CP1 (Tool Air + Ciki, DEC-017): TERIMPLEMENTASI, BELUM TERUJI di Studio. `QuestService.TurnIn` memberi 1 Air + 1 Ciki; equip + tekan = +5% Thirst/Hunger, cooldown 5 dtk per item, divalidasi server (`ConsumableService`). Butuh Tool template ber-`Handle` di `ServerStorage.QuestModels.Air` dan `.Ciki` (path belum diverifikasi). Lulus 51 uji mock + 13 mutasi (lihat CHANGELOG).
+ - Inventory stackable (`InventoryService` + `ItemConfig`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Ranting yang terambil (`ResourceConfig...ItemId`) masuk sebagai SATU Tool `Ranting xN` di Backpack; `QuestService.TurnIn` mengonsumsi `Target` item. Butuh Tool template di `ServerStorage.QuestModels` (path di `ItemConfig`, Tool dengan `Handle`). Lulus 50 uji mock di luar Roblox (lihat CHANGELOG).
+ 
+ ## Incomplete systems
+ - Notification System (UI) dan UI Backpack kustom: belum dimulai (Tool memakai Backpack bawaan Roblox). Belum ada notifikasi "Ranting penuh". Event quest sudah dipancarkan, UI-nya belum ada.
+ - Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
+-- Makan/minum lewat Tool di Backpack (reward quest CP1, DEC-011) menunggu Quest/Backpack; API server `SurvivalService.Add` sudah siap.
++- Indikator cooldown Tool Air/Ciki di HUD dan notifikasi "dapat reward": belum ada (menunggu Notification System).
+ - Sistem gameplay lain belum dimulai.
+ 
+ ## Known bugs
+@@ -31,13 +32,15 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
+ - Dialogue + Quest CP1: tes di Studio (lihat langkah di respons sesi 2026-10-18), 1 pemain lalu 2+ pemain.
+ - Inventory ranting: tes di Studio (Tool terbentuk, satu slot, respawn, serah-terima mengonsumsi), 1 lalu 2+ pemain.
+ - Prompt ranting: tes di Studio (prompt muncul hanya di titik aktif, tahan 12 dtk, lepas dini = batal, 2 pemain). Bila prompt tidak pernah selesai, cek Output (`ResourceConfig.Debug` mencetak alasan penolakan).
++- Reward Air/Ciki: tes di Studio (selesaikan quest CP1 -> Tool "Air" dan "Ciki" muncul di Backpack tanpa "xN"; equip + tekan = +5, tekan lagi <5 dtk tidak menambah; mati/respawn = Tool kembali; 2 pemain terpisah). Cek Output bila Tool tidak muncul (`InventoryService` mencetak Tool yang ada di folder template).
+ - Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
+ 
+ ## Next task
+-- Notification System (toast UI; memakai `QuestService.Subscribe`), lalu reward: Backpack/Tool makanan-minuman saat quest Completed (jawab Q6 dulu), lalu gate CP1.
++- Notification System (toast UI; memakai `QuestService.Subscribe`; termasuk umpan balik reward dan cooldown Tool), lalu gate CP1. Konfirmasi Q6 (Tool Air/Ciki memang tak habis dipakai?).
+ - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
+ 
+ ## Dependencies / blockers
++0a. Tool `Air` dan `Ciki` (ber-`Handle`) di `ServerStorage.QuestModels` (atau ubah `ItemConfig.Items.Air/Ciki.TemplatePath`). Tanpa itu quest CP1 TIDAK dimulai (warning di Output).
+ 0. Verifikasi di Studio: kondisi `ServerStorage.QuestModels`: `ItemConfig...TemplatePath` kini `{QuestModels, Ranting}` = path yang sama dengan `ResourceConfig...TemplatePath`; berarti `QuestModels.Ranting` harus Tool (dengan Handle) yang dipakai untuk inventory sekaligus (diubah jadi Model untuk tampilan dunia), ATAU kembalikan ItemConfig ke `Ranting(Tool)` bila Tool dan model dunia adalah dua objek berbeda, `NPC_Warung` (nama unik, punya ProximityPrompt), `Workspace.QuestObject.RantingBC_Spawner` berisi 20 BasePart `RantingSpawner_N`, `ServerStorage.QuestModels.Ranting`; jawab Q6 dan Q7.
+ 1. (Teratasi) `default.project.json` dan `src/` sudah ada.
+ 2. Dump hierarchy Workspace dari Studio (folder, Part, NPC, spawn point, Tag, Attribute) atau akses Studio MCP.
+diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
+index 0b49e1a..58578a3 100644
+--- a/.ai/DECISIONS.md
++++ b/.ai/DECISIONS.md
+@@ -72,6 +72,7 @@
+ - Konteks: GDD/Q2 menyebut shop. Instruksi terbaru pengguna: setelah ranting terkumpul, quest memberi makanan dan minuman ke Backpack sebagai Tool; di-equip menambah lapar/haus.
+ - Keputusan: ikuti instruksi terbaru. Detail (jumlah tambah, sekali pakai atau tidak, jumlah Tool) = Q6, menunggu jawaban pengguna. Dikerjakan di fase Quest/Backpack, bukan di Dialogue.
+ - Dampak: Q2 praktis terjawab (tanpa currency/harga). Tool memakai `SurvivalService.Add`.
++- Status: DIIMPLEMENTASI lewat DEC-017 (2026-10-20).
+ 
+ ## DEC-012 — Quest/Resource dipisah; pengambilan dideteksi server; resource personal digambar client
+ - Tanggal: 2026-10-18
+@@ -117,3 +118,16 @@
+ - Alasan: kegagalan menunggu template tidak boleh mematikan seluruh renderer pemain. Dua lapis supaya salah satu saja yang gagal tidak mengulang bug.
+ - Dampak: tidak ada Remote baru, tidak ada perubahan kontrak. Pembuatan prompt di spawner (`ensurePrompts`) tetap saat `Activate` pertama (utang DEC-015 tidak diubah).
+ 
++## DEC-017 — Reward CP1: Tool Air dan Ciki dari quest; pemakaian +5% dengan cooldown 5 dtk, dijaga server
++- Tanggal: 2026-10-20
++- Konteks: instruksi pengguna: setelah quest selesai, NPC_Warung memberi Air (Tool) dan Ciki (Tool, ber-Handle); saat ditekan menambah hunger/haus 5% dengan cooldown 5 detik. Menjawab sebagian Q6 dan melaksanakan DEC-011.
++- Keputusan:
++  - **Pemberian reward:** `QuestConfig.Quests[id].Rewards = { {ItemId, Amount} }` (opsional). `QuestService.TurnIn` memberi reward lewat `InventoryService.AddItem` pada transaksi yang sama dengan pengurangan ranting, SEBELUM event `Completed`. Pemilik tunggal progres/reward tetap `QuestService`; tidak ada logika quest di dialog atau di ConsumableService.
++  - **Item:** `Air` dan `Ciki` ditambah ke `ItemConfig.Items` (`MaxStack = 1`, `ShowCount = false` supaya nama Tool "Air"/"Ciki", bukan "Air x1"). `ItemDef.ShowCount` baru (opsional, default true; ranting tidak berubah). `TemplatePath` = `{"QuestModels","Air"/"Ciki"}` (mengikuti folder ranting; BELUM diverifikasi di Studio).
++  - **Pemakaian:** `SurvivalConfig.Consumables.Items[itemId] = { Stat, Amount, Cooldown }` (Air: Thirst +5/5 dtk; Ciki: Hunger +5/5 dtk). Satuan stat = persen dari Max (Max 100, jadi 5 poin = 5%). `ConsumableService` menyambung `Tool.Activated` lewat hook baru `InventoryService.OnToolCreated(fn)` (dipanggil tiap Tool item dibuat, termasuk dibangun ulang setelah respawn). Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
++  - **Validasi server (Activated):** Tool sedang di-equip pemain itu (`Parent == Character`), karakter hidup, item dimiliki menurut `InventoryService.GetCount` (bukan sekadar Tool ada), stat belum penuh (penuh: tidak ada efek dan cooldown tidak terpakai, sama dengan DEC-008), cooldown per pemain per item (`os.clock`, key `Item:<id>`, Air dan Ciki tidak berbagi cooldown).
++  - **Keamanan reward:** template Tool reward dicek di `Accept` (quest tidak dimulai bila hilang, pemain tidak mengumpulkan 10 ranting percuma) dan di `TurnIn` sebelum ranting dikonsumsi (ranting tidak hilang). Config reward divalidasi saat Start (ItemId harus ada di `ItemConfig`, Amount bilangan bulat >= 1); quest dengan config salah dilewati dengan warning.
++  - **Dialog:** teks node `QuestDone` menyebut air dan ciki (komentar `CP1.TurnIn` diperbarui).
++- Asumsi (perlu konfirmasi, Q6): Tool TIDAK habis dipakai (disimpulkan dari adanya cooldown 5 dtk); jumlah 1 Air dan 1 Ciki. Mengikuti instruksi terbaru, bukan GDD (+40 per item lewat shop). Hunger/Thirst +5 = konsisten dengan nilai awal 50 dan decay -1/10 dtk, jadi satu pakai setara 50 dtk decay; bila terasa terlalu kuat/lemah, ubah `Amount`/`Cooldown` di `SurvivalConfig` tanpa menyentuh logika.
++- Alternatif ditolak: Tool dibuat terpisah dengan Script sendiri (logika di klien/Tool, tidak server-authoritative dan duplikasi sistem inventory); sekali pakai dengan stack (bertentangan dengan cooldown yang diminta).
++- Risiko: `Tool.Activated` di server bergantung pada Tool ber-Handle yang di-equip (`RequiresHandle`); bila Tool buatan pengguna punya Script/LocalScript yang juga mengubah stat, itu akan di luar kendali sistem ini. Belum ada notifikasi/indikator cooldown di HUD; pemain yang menekan saat cooldown tidak mendapat umpan balik.
+diff --git a/.ai/GAME_CONTEXT.md b/.ai/GAME_CONTEXT.md
+index fb83585..2ce6f86 100644
+--- a/.ai/GAME_CONTEXT.md
++++ b/.ai/GAME_CONTEXT.md
+@@ -47,8 +47,8 @@ Knock dan pemulihan: **[OPEN]** (Q1).
+ |---|---|---|---|---|
+ | Ranting | Spawn CP1/CP2 | Quest CP1/CP2/CP3 | Personal | Tidak |
+ | Batu | Spawn CP2 | Quest CP2/CP3 (maks 1) | Personal | Tidak |
+-| Makanan (Nasi Bungkus) | Ibu Warung | +40 Hunger | Personal | Tidak |
+-| Air (Water Bottle) | Ibu Warung | +40 Thirst | Personal | Tidak |
++| Ciki (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Hunger, cooldown 5 dtk, tidak habis dipakai (DEC-017; menggantikan Nasi Bungkus +40) | Personal | Tidak |
++| Air (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Thirst, cooldown 5 dtk, tidak habis dipakai (DEC-017; menggantikan Water Bottle +40) | Personal | Tidak |
+ | Obor | Crafting CP3 | Menembus gelap CP3→CP4, fuel 120 detik | Personal | Tidak |
+ | Ikan | Diving CP4 | Quest opsional CP4 (semua jenis = "Fish") | Personal | Tidak |
+ | Jimat | Penjaga Danau | Damage hantu lebih kecil, lebih sulit knock | Personal | Tidak |
+@@ -80,6 +80,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
+ - Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
+ - Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
+ - **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain mendekati titik ranting lalu MENAHAN ProximityPrompt "Ambil" selama 12 detik (`ResourceConfig...Prompt.HoldDuration`; durasi divalidasi server, DEC-015) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting yang terambil masuk inventory sebagai SATU Tool stack `Ranting xN` di Backpack (DEC-013/014); saat diserahkan, 10 ranting dikonsumsi dari inventory.
++- **Reward (instruksi 2026-10-20, DEC-017):** saat `CP1.TurnIn` berhasil, Ibu Warung memberi Tool **Air** dan **Ciki** ke Backpack (`QuestConfig...Rewards`, `InventoryService`). Meng-equip lalu menekan/mengetuk Tool menambah Thirst (Air) atau Hunger (Ciki) sebesar 5 poin (= 5% karena Max 100) dengan cooldown 5 detik per item per pemain (`SurvivalConfig.Consumables.Items`, divalidasi server di `ConsumableService`). Tool tidak habis dipakai. Template Tool: `ServerStorage.QuestModels.Air` / `.Ciki` (path BELUM diverifikasi di Studio; ubah di `ItemConfig`). Bila template hilang: quest tidak dimulai (Accept) / TurnIn ditolak sebelum ranting dikonsumsi.
+ 
+ ### CP2 — Hutan Bambu
+ `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
+@@ -204,6 +205,6 @@ Quest/Resource TIDAK memakai Remote: pengambilan dideteksi server (posisi pemain
+ - **Q3 Damage hantu:** berapa damage dengan jimat vs tanpa jimat, dan ambang knock? Belum ada angka di GDD.
+ - **Q4 Konteks "HP bar bertambah":** instruksi menyebut makanan menambah "hp bar dan thirsty bar". Diasumsikan hunger bar dan thirst bar (GDD: Nasi +40 Hunger, Air +40 Thirst). Konfirmasi.
+ - **Q5 Solo/multiplayer:** apakah jumlah pemain terpilih memengaruhi gameplay (jumlah resource, kesulitan hantu)? GDD tidak menyebut.
+-- **Q6 Tool makanan/minuman (reward CP1):** instruksi terbaru: reward quest = Tool makanan dan minuman di Backpack; saat di-equip menambah lapar/haus (menggantikan "shop", lihat DEC-011). Belum jelas: berapa banyak tiap Tool menambah (GDD +40?), apakah sekali pakai (hilang) atau bisa dipakai berulang, dan berapa jumlah Tool yang diberikan.
++- **Q6 Tool makanan/minuman (reward CP1):** SEBAGIAN TERJAWAB (DEC-017): 1 Air dan 1 Ciki, +5% per pakai, cooldown 5 dtk, tidak habis dipakai (diasumsikan dari "cooldown 5 detik"). Masih perlu konfirmasi: apakah Tool memang boleh dipakai tanpa batas, atau sekali pakai/berkurang.
+ - **Q7 MaxStack ranting:** batas tumpukan ranting per pemain? Sementara 20 (CP1 butuh 10; batu maks 1 menurut GDD). Atur di `ItemConfig.Items.Ranting.MaxStack`.
+ - **Q8 Inventory saat mati:** item tetap atau hilang saat pemain mati/respawn? Sementara tetap (DEC-013).
+diff --git a/.ai/TASKS.md b/.ai/TASKS.md
+index 1656b72..e76f4cb 100644
+--- a/.ai/TASKS.md
++++ b/.ai/TASKS.md
+@@ -1,6 +1,7 @@
+ # TASKS
+ 
+ ## In progress
++- [ ] PHASE 2 (sebagian) — Reward CP1 Tool Air + Ciki (+5%, cooldown 5 dtk): kode selesai & lulus uji mock; menunggu tes Studio (template Tool, equip/Activated, respawn, 2 pemain)
+ - [ ] PHASE 1 (sebagian) — Inventory stackable + ranting sebagai Tool: kode selesai & lulus uji mock; menunggu tes Studio (template Tool, respawn, serah-terima, 2 pemain)
+ - [ ] PHASE 0 — Repository & project audit (repo dan dokumentasi selesai; Rojo dan Studio terhambat)
+ 
+diff --git a/src/server/Services/ConsumableService.luau b/src/server/Services/ConsumableService.luau
+index 18868cd..176dc4b 100644
+--- a/src/server/Services/ConsumableService.luau
++++ b/src/server/Services/ConsumableService.luau
+@@ -14,6 +14,13 @@
+ 	Validasi server: karakter hidup, tag masih terpasang, jarak ke prompt, cooldown per pemain,
+ 	dan stat belum penuh (jika penuh: tidak ada efek dan cooldown tidak terpakai).
+ 	Objek tidak dihapus setelah dipakai; state bersifat personal (cooldown per pemain).
++
++	TOOL DI BACKPACK (Air, Ciki — reward CP1): Config.Consumables.Items[itemId].
++	  InventoryService memanggil OnToolCreated setiap Tool item dibuat; di sini Tool.Activated disambung.
++	  Pemain meng-equip Tool lalu menekan/mengetuk -> server validasi -> SurvivalService.Add.
++	  Validasi server: Tool sedang di-equip pemain itu (Parent = Character), karakter hidup, item benar-benar
++	  dimiliki (InventoryService.GetCount, bukan sekadar ada Tool-nya), stat belum penuh (penuh: tidak ada
++	  efek dan cooldown tidak terpakai), cooldown per pemain per item. Tool tidak habis dipakai (DEC-017).
+ ]]
+ 
+ local CollectionService = game:GetService("CollectionService")
+@@ -21,11 +28,15 @@ local Players = game:GetService("Players")
+ local ReplicatedStorage = game:GetService("ReplicatedStorage")
+ 
+ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SurvivalConfig") :: ModuleScript) :: any
++local ItemConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemConfig") :: ModuleScript) :: any
+ local SurvivalService = require((script.Parent :: Instance):WaitForChild("SurvivalService") :: ModuleScript) :: any
++local InventoryService = require((script.Parent :: Instance):WaitForChild("InventoryService") :: ModuleScript) :: any
+ 
+ local AMOUNT_ATTRIBUTE = "ConsumeAmount"
+ local COOLDOWN_ATTRIBUTE = "ConsumeCooldown"
+ local MAX_COOLDOWN = 3600
++-- Awalan key cooldown Tool di lastUse, agar tidak bentrok dengan typeName (Food/Drink) scope Player.
++local ITEM_KEY_PREFIX = "Item:"
+ 
+ local ConsumableService = {}
+ 
+@@ -39,6 +50,8 @@ type Binding = {
+ local bindings: { [string]: { [Instance]: Binding } } = {}
+ -- lastUse[player][key] = os.clock() terakhir berhasil. key = Instance (scope Object) atau typeName (scope Player).
+ local lastUse: { [Player]: { [any]: number } } = {}
++-- Item Tool yang lolos validasi config: itemDefs[itemId] = Config.Consumables.Items[itemId].
++local itemDefs: { [string]: any } = {}
+ local started = false
+ 
+ local function readNumberAttribute(instance: Instance, name: string, default: number, minValue: number, maxValue: number): number
+@@ -130,6 +143,47 @@ local function onTriggered(instance: Instance, typeName: string, def: any, bindi
+ 	end
+ end
+ 
++local function onToolActivated(player: Player, itemId: string, tool: Tool)
++	local def = itemDefs[itemId]
++	if def == nil then
++		return
++	end
++
++	-- Tool harus sedang di-equip pemain ini dan karakternya hidup.
++	local character = player.Character
++	if character == nil or tool.Parent ~= character or getAliveRoot(player) == nil then
++		return
++	end
++
++	-- Kepemilikan dari data server (InventoryService), bukan dari keberadaan Tool.
++	if InventoryService.GetCount(player, itemId) < 1 then
++		return
++	end
++
++	-- Stat sudah penuh: tidak ada efek, cooldown tidak terpakai.
++	local statDef = Config.Stats[def.Stat]
++	local current = SurvivalService.Get(player, def.Stat)
++	if statDef == nil or current == nil or current >= statDef.Max then
++		return
++	end
++
++	-- Cooldown per pemain per item (Activated bisa dispam client).
++	local playerUse = lastUse[player]
++	if playerUse == nil then
++		return -- pemain sudah keluar
++	end
++	local key = ITEM_KEY_PREFIX .. itemId
++	local now = os.clock()
++	local last = playerUse[key]
++	if last ~= nil and now - last < def.Cooldown then
++		return
++	end
++
++	if SurvivalService.Add(player, def.Stat, def.Amount) ~= nil then
++		playerUse[key] = now
++	end
++end
++
+ local function findOrCreatePrompt(instance: Instance, def: any): (ProximityPrompt?, boolean)
+ 	if instance:IsA("ProximityPrompt") then
+ 		return instance, false
+@@ -214,6 +268,26 @@ local function validateDef(typeName: string, def: any): boolean
+ 	return true
+ end
+ 
++local function validateItemDef(itemId: string, def: any): boolean
++	if ItemConfig.Items[itemId] == nil then
++		warn(`[ConsumableService] Config Consumables.Items.{itemId}: itemId tidak ada di ItemConfig.Items.`)
++		return false
++	end
++	if type(def) ~= "table" or Config.Stats[def.Stat] == nil then
++		warn(`[ConsumableService] Config Consumables.Items.{itemId}: Stat tidak valid.`)
++		return false
++	end
++	if type(def.Amount) ~= "number" or def.Amount ~= def.Amount or def.Amount <= 0 then
++		warn(`[ConsumableService] Config Consumables.Items.{itemId}: Amount harus > 0.`)
++		return false
++	end
++	if type(def.Cooldown) ~= "number" or def.Cooldown ~= def.Cooldown or def.Cooldown < 0 then
++		warn(`[ConsumableService] Config Consumables.Items.{itemId}: Cooldown harus >= 0.`)
++		return false
++	end
++	return true
++end
++
+ function ConsumableService.Start()
+ 	if started then
+ 		return
+@@ -245,6 +319,22 @@ function ConsumableService.Start()
+ 			unbind(typeName, instance)
+ 		end)
+ 	end
++
++	-- Tool di Backpack: sambungkan Tool.Activated tiap kali InventoryService membuat Tool item.
++	for itemId, def in Config.Consumables.Items do
++		if validateItemDef(itemId, def) then
++			itemDefs[itemId] = def
++		end
++	end
++	InventoryService.OnToolCreated(function(player: Player, itemId: string, tool: Tool)
++		if itemDefs[itemId] == nil then
++			return
++		end
++		-- Koneksi ikut hilang saat Tool dihancurkan (respawn / jumlah 0); Tool baru memicu callback lagi.
++		tool.Activated:Connect(function()
++			onToolActivated(player, itemId, tool)
++		end)
++	end)
+ end
+ 
+ return ConsumableService
+diff --git a/src/server/Services/InventoryService.luau b/src/server/Services/InventoryService.luau
+index 16e47f3..1b8499b 100644
+--- a/src/server/Services/InventoryService.luau
++++ b/src/server/Services/InventoryService.luau
+@@ -14,6 +14,10 @@
+ 		InventoryService.GetCount(player, itemId) -> number
+ 		InventoryService.AddItem(player, itemId, amount) -> (boolean, number)    -- (berhasil, jumlah masuk)
+ 		InventoryService.RemoveItem(player, itemId, amount) -> boolean           -- atomik: semua atau tidak sama sekali
++		InventoryService.OnToolCreated(fn) -> disconnect                         -- fn(player, itemId, tool)
++			Dipanggil setiap Tool item baru dibuat di Backpack (item pertama kali masuk, atau dibangun ulang
++			setelah respawn). Untuk sistem yang perlu menyambung event ke Tool (mis. ConsumableService).
++			Tool dengan ItemId sama TIDAK memicu ulang saat jumlah berubah.
+ ]]
+ 
+ local Players = game:GetService("Players")
+@@ -31,6 +35,7 @@ local InventoryService = {}
+ local counts: { [Player]: { [string]: number } } = {}
+ local templates: { [string]: Tool } = {}
+ local warnedMissing: { [string]: boolean } = {}
++local toolCreatedCallbacks: { (player: Player, itemId: string, tool: Tool) -> () } = {}
+ local started = false
+ 
+ local function isWholePositive(n: any): boolean
+@@ -141,9 +146,15 @@ local function syncTool(player: Player, itemId: string)
+ 		clone:SetAttribute(ATTR_ITEM_ID, itemId)
+ 		clone.Parent = backpack
+ 		tool = clone
++		for _, callback in table.clone(toolCreatedCallbacks) do
++			local ok, err = pcall(callback, player, itemId, clone)
++			if not ok then
++				warn(`[InventoryService] Callback OnToolCreated error untuk {itemId}: {tostring(err)}`)
++			end
++		end
+ 	end
+ 
+-	local label = `{def.DisplayName} x{count}`
++	local label = if def.ShowCount == false then def.DisplayName else `{def.DisplayName} x{count}`
+ 	local t = tool :: Tool
+ 	t:SetAttribute(ATTR_COUNT, count)
+ 	t.Name = label
+@@ -202,6 +213,16 @@ function InventoryService.RemoveItem(player: Player, itemId: string, amount: num
+ 	return true
+ end
+ 
++function InventoryService.OnToolCreated(callback: (player: Player, itemId: string, tool: Tool) -> ()): () -> ()
++	table.insert(toolCreatedCallbacks, callback)
++	return function()
++		local index = table.find(toolCreatedCallbacks, callback)
++		if index ~= nil then
++			table.remove(toolCreatedCallbacks, index)
++		end
++	end
++end
++
+ local function onPlayerAdded(player: Player)
+ 	if counts[player] ~= nil then
+ 		return
+diff --git a/src/server/Services/QuestService.luau b/src/server/Services/QuestService.luau
+index 5d8b0b1..5d0b592 100644
+--- a/src/server/Services/QuestService.luau
++++ b/src/server/Services/QuestService.luau
+@@ -13,7 +13,9 @@
+ 	  4. Kembali ke Ibu Warung -> dialog node Entry.ReadyToTurnIn -> Action "CP1.TurnIn" -> Completed.
+ 	  Ranting yang terambil masuk inventory (Tool stack, ResourceService + InventoryService); saat
+ 	  TurnIn sebanyak Target dikonsumsi dari inventory. Bila tidak cukup, TurnIn ditolak.
+-	  Reward (Tool makanan/minuman) BELUM ada; sistem Backpack nanti memakai Subscribe("Completed").
++	  Reward (QuestConfig...Rewards, mis. Tool Air dan Ciki) masuk inventory pada TurnIn yang sama,
++	  SEBELUM event "Completed". Template Tool reward dicek di Accept dan di TurnIn (sebelum ranting
++	  dikonsumsi): bila hilang, quest tidak dimulai / TurnIn ditolak dan ranting tidak hilang.
+ 
+ 	Replikasi ke client (read-only) lewat Player attribute, untuk Notification/HUD nanti:
+ 	  Quest_<id>_State    (string)
+@@ -36,6 +38,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
+ local Shared = ReplicatedStorage:WaitForChild("Shared")
+ local Config = require(Shared:WaitForChild("QuestConfig") :: ModuleScript) :: any
+ local ResourceConfig = require(Shared:WaitForChild("ResourceConfig") :: ModuleScript) :: any
++local ItemConfig = require(Shared:WaitForChild("ItemConfig") :: ModuleScript) :: any
+ local DialogueConfig = require(Shared:WaitForChild("DialogueConfig") :: ModuleScript) :: any
+ 
+ local Services = script.Parent :: Instance
+@@ -86,6 +89,35 @@ local function emit(event: string, player: Player, questId: string, data: any)
+ 	end
+ end
+ 
++-- Semua template Tool reward ada? (Tool tanpa template tidak bisa diberikan; pemain tidak boleh rugi.)
++local function rewardsAvailable(player: Player, questId: string, def: any): boolean
++	if def.Rewards == nil then
++		return true
++	end
++	for _, reward in def.Rewards do
++		if not InventoryService.IsAvailable(reward.ItemId) then
++			warn(`[QuestService] {questId}: template Tool reward '{reward.ItemId}' tidak tersedia; {player.Name} tidak diproses.`)
++			return false
++		end
++	end
++	return true
++end
++
++local function grantRewards(player: Player, questId: string, def: any)
++	if def.Rewards == nil then
++		return
++	end
++	for _, reward in def.Rewards do
++		local ok, added = InventoryService.AddItem(player, reward.ItemId, reward.Amount)
++		if ok then
++			log(`{player.Name} menerima reward {questId}: {reward.ItemId} x{added}`)
++		else
++			-- Stack penuh (mis. pemain sudah punya item itu) atau template hilang setelah pengecekan.
++			warn(`[QuestService] Reward {reward.ItemId} x{reward.Amount} untuk {player.Name} tidak masuk inventory ({questId}).`)
++		end
++	end
++end
++
+ --------------------------------------------------------------------------------
+ -- Transisi state
+ --------------------------------------------------------------------------------
+@@ -106,6 +138,10 @@ function QuestService.Accept(player: Player, questId: string): boolean
+ 	if def == nil or entry == nil or entry.State ~= "None" then
+ 		return false
+ 	end
++	-- Jangan mulai quest yang rewardnya tidak bisa diberikan (pemain baru tahu setelah 10 ranting).
++	if not rewardsAvailable(player, questId, def) then
++		return false
++	end
+ 
+ 	local ok, reason = ResourceService.Activate(player, def.ResourceSet)
+ 	if not ok then
+@@ -128,6 +164,11 @@ function QuestService.TurnIn(player: Player, questId: string): boolean
+ 		return false
+ 	end
+ 
++	-- Template reward dicek dulu: bila hilang, TurnIn ditolak SEBELUM ranting dikonsumsi.
++	if not rewardsAvailable(player, questId, def) then
++		return false
++	end
++
+ 	-- Serahkan item dari inventory (atomik). Cek dulu sebelum mengubah state.
+ 	local itemId = ResourceConfig.Sets[def.ResourceSet].ItemId
+ 	if itemId ~= nil and not InventoryService.RemoveItem(player, itemId, def.Target) then
+@@ -137,6 +178,7 @@ function QuestService.TurnIn(player: Player, questId: string): boolean
+ 
+ 	entry.State = "Completed"
+ 	writeAttributes(player, questId, entry)
++	grantRewards(player, questId, def)
+ 	log(`{player.Name} menyelesaikan {questId}`)
+ 	emit("Completed", player, questId, {})
+ 	return true
+@@ -217,6 +259,19 @@ local function validateQuest(questId: string, def: any): boolean
+ 			return fail(`Entry.{key} menunjuk node '{tostring(nodeId)}' yang tidak ada di dialog {def.NpcId}`)
+ 		end
+ 	end
++	if def.Rewards ~= nil then
++		if type(def.Rewards) ~= "table" then
++			return fail("Rewards harus berupa array")
++		end
++		for index, reward in def.Rewards do
++			if type(reward) ~= "table" or ItemConfig.Items[reward.ItemId] == nil then
++				return fail(`Rewards[{index}].ItemId tidak ada di ItemConfig`)
++			end
++			if type(reward.Amount) ~= "number" or reward.Amount < 1 or reward.Amount ~= math.floor(reward.Amount) then
++				return fail(`Rewards[{index}].Amount harus bilangan bulat >= 1`)
++			end
++		end
++	end
+ 	return true
+ end
+ 
+diff --git a/src/shared/DialogueConfig.luau b/src/shared/DialogueConfig.luau
+index 37cd8b8..c848b30 100644
+--- a/src/shared/DialogueConfig.luau
++++ b/src/shared/DialogueConfig.luau
+@@ -132,12 +132,12 @@ local Config: Config = {
+ 				QuestReady = {
+ 					Text = "Wah, rantingnya sudah cukup {RantingTarget}! Sini, serahkan ke ibu.",
+ 					Choices = {
+-						-- "CP1.TurnIn" ditangani QuestService. Reward (Tool makanan/minuman) menyusul di fase Backpack.
++						-- "CP1.TurnIn" ditangani QuestService (juga memberi reward Air dan Ciki ke Backpack).
+ 						{ Text = "Ini, Bu.", Next = "QuestDone", Action = "CP1.TurnIn" },
+ 					},
+ 				},
+ 				QuestDone = {
+-					Text = "Terima kasih, Nak. Tungku ibu sudah bisa menyala.",
++					Text = "Terima kasih, Nak. Tungku ibu sudah bisa menyala. Ini ada air dan ciki buat bekal. Pegang, lalu tekan kalau haus atau lapar ya.",
+ 				},
+ 				QuestAfter = {
+ 					Text = "Tungku ibu sudah menyala berkat kamu. Hati-hati di atas sana, Nak.",
+diff --git a/src/shared/ItemConfig.luau b/src/shared/ItemConfig.luau
+index 581fcbe..24118da 100644
+--- a/src/shared/ItemConfig.luau
++++ b/src/shared/ItemConfig.luau
+@@ -10,14 +10,19 @@
+ 	  TemplatePath : path dari ServerStorage ke Tool template (di-Clone untuk pemain). Template asli
+ 	                 tidak diubah. Konvensi sama dengan ResourceConfig.TemplatePath.
+ 	  MaxStack     : jumlah maksimum per pemain. Penuh = resource tidak terambil (tetap di dunia).
++	  ShowCount    : (opsional, default true) false = nama Tool tanpa " xN" (untuk item tunggal yang
++	                 dipakai berulang, mis. Air dan Ciki).
+ 
+ 	Resource yang memberi item: isi ResourceConfig.Sets[setId].ItemId dengan itemId di sini.
++	Quest yang memberi item sebagai reward: isi QuestConfig.Quests[id].Rewards.
++	Item yang bisa dipakai (menambah Hunger/Thirst): isi SurvivalConfig.Consumables.Items[itemId].
+ ]]
+ 
+ export type ItemDef = {
+ 	DisplayName: string,
+ 	TemplatePath: { string },
+ 	MaxStack: number,
++	ShowCount: boolean?,
+ }
+ 
+ export type Config = {
+@@ -33,6 +38,22 @@ local Config: Config = {
+ 			TemplatePath = { "QuestModels", "Ranting" },
+ 			MaxStack = 20, -- GDD: CP1 butuh 10. Perlu konfirmasi (Q7).
+ 		},
++
++		-- Reward CP1 (QuestConfig.Quests.CP1_Ranting.Rewards). Tool bernama "Air" dan "Ciki" dengan Part "Handle".
++		-- TemplatePath mengikuti konvensi folder QuestModels, BELUM diverifikasi di Studio: ubah bila Tool
++		-- ada di folder lain di ServerStorage. Satu Tool per item, tidak habis dipakai (lihat DEC-017).
++		Air = {
++			DisplayName = "Air",
++			TemplatePath = { "QuestModels", "Air" },
++			MaxStack = 1,
++			ShowCount = false,
++		},
++		Ciki = {
++			DisplayName = "Ciki",
++			TemplatePath = { "QuestModels", "Ciki" },
++			MaxStack = 1,
++			ShowCount = false,
++		},
+ 	},
+ }
+ 
+diff --git a/src/shared/QuestConfig.luau b/src/shared/QuestConfig.luau
+index bd0e987..b4b73c3 100644
+--- a/src/shared/QuestConfig.luau
++++ b/src/shared/QuestConfig.luau
+@@ -13,11 +13,18 @@
+ 	  VariablePrefix : membuat variabel teks dialog {<Prefix>Count} dan {<Prefix>Target}.
+ 	  Actions        : nama Action dialog yang ditangani QuestService (Accept, TurnIn).
+ 	  Entry          : node dialog awal NPC per state quest (state None memakai node Start biasa).
++	  Rewards        : (opsional) { { ItemId, Amount } } item yang masuk ke inventory saat TurnIn berhasil.
++	                   ItemId harus ada di ItemConfig.Items.
+ 
+ 	State quest per pemain: None -> Active -> ReadyToTurnIn -> Completed.
+-	Reward belum diimplementasi (menunggu Backpack/Tool); sistem lain memakai QuestService.Subscribe.
++	Reward item lewat Rewards (InventoryService). Efek lain (mis. membuka gate) memakai QuestService.Subscribe.
+ ]]
+ 
++export type RewardDef = {
++	ItemId: string,
++	Amount: number,
++}
++
+ export type QuestDef = {
+ 	Title: string,
+ 	Type: string,
+@@ -34,6 +41,7 @@ export type QuestDef = {
+ 		ReadyToTurnIn: string,
+ 		Completed: string,
+ 	},
++	Rewards: { RewardDef }?,
+ }
+ 
+ export type Config = {
+@@ -61,6 +69,11 @@ local Config: Config = {
+ 				ReadyToTurnIn = "QuestReady",
+ 				Completed = "QuestAfter",
+ 			},
++			-- Ibu Warung memberi Air (+5% Thirst) dan Ciki (+5% Hunger); lihat SurvivalConfig.Consumables.Items.
++			Rewards = {
++				{ ItemId = "Air", Amount = 1 },
++				{ ItemId = "Ciki", Amount = 1 },
++			},
+ 		},
+ 	},
+ }
+diff --git a/src/shared/SurvivalConfig.luau b/src/shared/SurvivalConfig.luau
+index 57465c6..4d73d27 100644
+--- a/src/shared/SurvivalConfig.luau
++++ b/src/shared/SurvivalConfig.luau
+@@ -24,6 +24,13 @@
+ 
+ 	Override per objek (opsional, Attribute di objek ber-tag, di Studio):
+ 	ConsumeAmount (number), ConsumeCooldown (number).
++
++	Consumables.Items (Tool di Backpack, mis. Air dan Ciki reward CP1):
++	Key           : itemId di ItemConfig.Items (harus ada di sana).
++	Stat          : stat yang bertambah ("Hunger" / "Thirst").
++	Amount        : poin yang ditambah per pemakaian (Max 100 -> 5 poin = 5%).
++	Cooldown      : detik jeda antar pemakaian item itu (per pemain, per item; dijaga server).
++	Pemakaian = pemain meng-equip Tool lalu menekan/mengetuk (Tool.Activated). Tool TIDAK habis dipakai.
+ ]]
+ 
+ export type StatDef = {
+@@ -41,11 +48,18 @@ export type ConsumableDef = {
+ 	ActionText: string,
+ }
+ 
++export type ItemConsumableDef = {
++	Stat: string,
++	Amount: number,
++	Cooldown: number,
++}
++
+ export type ConsumableSettings = {
+ 	CooldownScope: string,
+ 	DistanceTolerance: number,
+ 	PromptDistance: number,
+ 	Types: { [string]: ConsumableDef },
++	Items: { [string]: ItemConsumableDef },
+ }
+ 
+ export type Config = {
+@@ -98,6 +112,18 @@ local Config: Config = {
+ 				ActionText = "Minum",
+ 			},
+ 		},
++		Items = {
++			Air = {
++				Stat = "Thirst",
++				Amount = 5,
++				Cooldown = 5,
++			},
++			Ciki = {
++				Stat = "Hunger",
++				Amount = 5,
++				Cooldown = 5,
++			},
++		},
+ 	},
+ }
+ 

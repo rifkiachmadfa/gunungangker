@@ -117,3 +117,12 @@
 - Alasan: kegagalan menunggu template tidak boleh mematikan seluruh renderer pemain. Dua lapis supaya salah satu saja yang gagal tidak mengulang bug.
 - Dampak: tidak ada Remote baru, tidak ada perubahan kontrak. Pembuatan prompt di spawner (`ensurePrompts`) tetap saat `Activate` pertama (utang DEC-015 tidak diubah).
 
+
+## DEC-017 — Notifikasi quest murni client, digerakkan Player attribute server
+- Tanggal: 2026-10-20
+- Konteks: instruksi pengguna: toast saat dapat ranting; tujuan "0/10" muncul setelah bicara dengan NPC dan bertambah tiap ranting; di 10/10 muncul pemberitahuan kembali ke NPC dan serahkan; setelah berdialog (serah) notifikasi hilang.
+- Keputusan: `NotificationController` (client) membaca `Quest_<id>_State`/`Quest_<id>_Progress` yang sudah ditulis `QuestService` (server) dan menggambar lewat `NotificationView`. Logika murni (format teks, kapan toast/tujuan) di `src/shared/QuestNotify.luau`; teks di `QuestConfig.Quests[id].Notify`. Tidak ada Remote baru, tidak ada perubahan server, tidak ada perubahan mapping Rojo.
+- Aturan tampil: tujuan terlihat saat Active dan ReadyToTurnIn; hilang saat Completed (atau None). Toast hanya saat progres NAIK (mulai quest 0, reset, dan nilai awal saat join tidak memicu toast). Render digabung per frame (`task.defer`) karena State dan Progress diset berurutan oleh server.
+- Interpretasi "setelah berdialog": tujuan hilang saat quest Completed (serah-terima sukses lewat pilihan "Ini, Bu."), BUKAN saat dialog sekadar dibuka. Membuka lalu menutup dialog di state ReadyToTurnIn tidak menghapus tujuan karena quest belum selesai.
+- Alasan: state personal sudah server-authoritative dan terreplikasi; client tidak bisa memalsukan progres karena hanya menampilkan. Menghindari Remote/listener paralel (`QuestService.Subscribe` tetap untuk sistem server).
+- Risiko: bergantung urutan replikasi attribute (diatasi coalesce); `QuestConfig.Debug` log server masih aktif; belum ada notifikasi stack penuh, reward, atau quest selesai.

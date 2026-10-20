@@ -48,3 +48,9 @@
 - File/skrip: `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
 - Hasil test: `luau-compile` OK. Uji mock renderer (Roblox di-mock, source asli): versi lama gagal 7 dari 8 skenario (client yang menyala sebelum template ada), versi baru lulus 8 dari 8. Uji mock server: template ada sebelum `Activate` pertama (lama: tidak). Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio, uji multiplayer nyata, `rojo build`.
 
+
+## 2026-10-20 (b) — Notification System quest CP1 (toast + tujuan n/10)
+- Perubahan: toast "Mendapatkan Ranting" tiap progres naik; kartu tujuan "Kumpulkan ranting n/10" (kanan-atas) setelah quest diterima; di 10/10 berubah menjadi pesan kembali ke Ibu Warung dan serahkan ranting; hilang saat quest Completed. Murni client, membaca Player attribute quest.
+- Sistem terdampak: bootstrap client, `QuestConfig` (tambah `Notify`). Server, Remote, dan mapping Rojo tidak berubah.
+- File/skrip: `src/shared/QuestNotify.luau` (baru), `src/shared/QuestConfig.luau`, `src/client/UI/NotificationView.luau` (baru), `src/client/Controllers/NotificationController.luau` (baru), `src/client/init.client.luau`, `.ai/*`.
+- Hasil test: simulasi logika (port JS dari `QuestNotify` + alur render controller, bukan Luau asli) 15/15 lulus: 0/10 tanpa toast, +1 toast per ranting, 10/10 pesan kembali ke NPC, hilang saat Completed, tanpa toast ganda saat refresh/reset, urutan State-lalu-Progress. Keseimbangan blok/kurung lolos. TIDAK dilakukan: `luau-analyze`/type-check, `rojo build` (tooling tidak ada di sandbox ini), uji Studio, uji multiplayer, uji mobile.

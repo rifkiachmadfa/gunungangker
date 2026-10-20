@@ -1,6 +1,7 @@
 # TASKS
 
 ## In progress
+- [ ] PHASE 1 (sebagian) — Notification System quest CP1: kode selesai; menunggu tes Studio (toast, n/10, pesan kembali ke NPC, hilang setelah serah, 2 pemain)
 - [ ] PHASE 1 (sebagian) — Inventory stackable + ranting sebagai Tool: kode selesai & lulus uji mock; menunggu tes Studio (template Tool, respawn, serah-terima, 2 pemain)
 - [ ] PHASE 0 — Repository & project audit (repo dan dokumentasi selesai; Rojo dan Studio terhambat)
 

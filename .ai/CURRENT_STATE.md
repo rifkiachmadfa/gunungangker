@@ -1,6 +1,6 @@
 # CURRENT STATE
 
-Last updated: 2026-10-18
+Last updated: 2026-10-20
 Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
 Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) belum di-commit (diserahkan sebagai patch)
 
@@ -12,8 +12,10 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
 - Pengambilan ranting via ProximityPrompt TAHAN 12 dtk (`ResourceService` mode `Prompt` + `ResourceRenderer`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Prompt `ResourcePrompt` dibuat server di tiap Part titik spawn; durasi tahan diukur server (HoldBegan→Triggered). Lulus 104/101 uji mock (dua skenario template). Prompt hanya dibuat saat quest pertama kali diterima.
 - Inventory stackable (`InventoryService` + `ItemConfig`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Ranting yang terambil (`ResourceConfig...ItemId`) masuk sebagai SATU Tool `Ranting xN` di Backpack; `QuestService.TurnIn` mengonsumsi `Target` item. Butuh Tool template di `ServerStorage.QuestModels` (path di `ItemConfig`, Tool dengan `Handle`). Lulus 50 uji mock di luar Roblox (lihat CHANGELOG).
 
+- Notification System quest CP1 (toast + kartu tujuan n/10, `NotificationView`/`NotificationController`/`QuestNotify`): TERIMPLEMENTASI (2026-10-20), BELUM TERUJI di Studio. Client-only, membaca Attribute `Quest_<id>_State/Progress`; tanpa Remote baru.
+
 ## Incomplete systems
-- Notification System (UI) dan UI Backpack kustom: belum dimulai (Tool memakai Backpack bawaan Roblox). Belum ada notifikasi "Ranting penuh". Event quest sudah dipancarkan, UI-nya belum ada.
+- UI Backpack kustom: belum dimulai (Tool memakai Backpack bawaan Roblox). Belum ada notifikasi "Ranting penuh" (stack penuh) dan notifikasi reward/quest selesai.
 - Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
 - Makan/minum lewat Tool di Backpack (reward quest CP1, DEC-011) menunggu Quest/Backpack; API server `SurvivalService.Add` sudah siap.
 - Sistem gameplay lain belum dimulai.
@@ -28,13 +30,14 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
 - Roblox Studio MCP tidak tersedia pada audit ini; Workspace belum diinspeksi. Nama objek di GDD belum terverifikasi.
 
 ## Current task
+- Notifikasi quest: tes di Studio (terima quest -> 0/10 muncul; ambil ranting -> toast + n/10; 10/10 -> pesan kembali ke Ibu Warung; serahkan -> kartu hilang; 2 pemain terpisah).
 - Dialogue + Quest CP1: tes di Studio (lihat langkah di respons sesi 2026-10-18), 1 pemain lalu 2+ pemain.
 - Inventory ranting: tes di Studio (Tool terbentuk, satu slot, respawn, serah-terima mengonsumsi), 1 lalu 2+ pemain.
 - Prompt ranting: tes di Studio (prompt muncul hanya di titik aktif, tahan 12 dtk, lepas dini = batal, 2 pemain). Bila prompt tidak pernah selesai, cek Output (`ResourceConfig.Debug` mencetak alasan penolakan).
 - Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
 
 ## Next task
-- Notification System (toast UI; memakai `QuestService.Subscribe`), lalu reward: Backpack/Tool makanan-minuman saat quest Completed (jawab Q6 dulu), lalu gate CP1.
+- Tes Studio notifikasi (lihat CHANGELOG 2026-10-20 b), lalu reward: Backpack/Tool makanan-minuman saat quest Completed (jawab Q6 dulu), lalu gate CP1.
 - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
 
 ## Dependencies / blockers

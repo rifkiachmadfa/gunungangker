@@ -185,6 +185,7 @@ Semua RemoteEvent dibuat server lewat `src/shared/Remotes.luau` di `ReplicatedSt
 
 Remote Dialogue hanya membawa teks dan intent; progres quest tidak pernah dikirim client.
 Quest/Resource TIDAK memakai Remote: pengambilan dideteksi server (posisi pemain), state direplikasi lewat Player attribute (§12).
+Notifikasi quest (toast + tujuan n/10) juga TIDAK memakai Remote: client membaca attribute §12 (DEC-017).
 
 ## 14. Ending
 - Menang: serahkan 5 sesajen di Summit Gate → Summit +1 (SummitCount di profil).

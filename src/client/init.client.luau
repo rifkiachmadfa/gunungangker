@@ -16,3 +16,7 @@ DialogueController.Start(Players.LocalPlayer, DialogueView)
 
 local ResourceRenderer = require(Controllers:WaitForChild("ResourceRenderer") :: ModuleScript) :: any
 ResourceRenderer.Start(Players.LocalPlayer)
+
+local NotificationView = require(UI:WaitForChild("NotificationView") :: ModuleScript) :: any
+local NotificationController = require(Controllers:WaitForChild("NotificationController") :: ModuleScript) :: any
+NotificationController.Start(Players.LocalPlayer, NotificationView)
