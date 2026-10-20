@@ -24,6 +24,13 @@
 
 	Override per objek (opsional, Attribute di objek ber-tag, di Studio):
 	ConsumeAmount (number), ConsumeCooldown (number).
+
+	Consumables.Items (Tool di Backpack, mis. Air dan Ciki reward CP1):
+	Key           : itemId di ItemConfig.Items (harus ada di sana).
+	Stat          : stat yang bertambah ("Hunger" / "Thirst").
+	Amount        : poin yang ditambah per pemakaian (Max 100 -> 5 poin = 5%).
+	Cooldown      : detik jeda antar pemakaian item itu (per pemain, per item; dijaga server).
+	Pemakaian = pemain meng-equip Tool lalu menekan/mengetuk (Tool.Activated). Tool TIDAK habis dipakai.
 ]]
 
 export type StatDef = {
@@ -41,11 +48,18 @@ export type ConsumableDef = {
 	ActionText: string,
 }
 
+export type ItemConsumableDef = {
+	Stat: string,
+	Amount: number,
+	Cooldown: number,
+}
+
 export type ConsumableSettings = {
 	CooldownScope: string,
 	DistanceTolerance: number,
 	PromptDistance: number,
 	Types: { [string]: ConsumableDef },
+	Items: { [string]: ItemConsumableDef },
 }
 
 export type Config = {
@@ -96,6 +110,18 @@ local Config: Config = {
 				Amount = 1,
 				Cooldown = 5,
 				ActionText = "Minum",
+			},
+		},
+		Items = {
+			Air = {
+				Stat = "Thirst",
+				Amount = 5,
+				Cooldown = 5,
+			},
+			Ciki = {
+				Stat = "Hunger",
+				Amount = 5,
+				Cooldown = 5,
 			},
 		},
 	},

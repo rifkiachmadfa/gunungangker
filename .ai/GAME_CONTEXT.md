@@ -47,8 +47,8 @@ Knock dan pemulihan: **[OPEN]** (Q1).
 |---|---|---|---|---|
 | Ranting | Spawn CP1/CP2 | Quest CP1/CP2/CP3 | Personal | Tidak |
 | Batu | Spawn CP2 | Quest CP2/CP3 (maks 1) | Personal | Tidak |
-| Makanan (Nasi Bungkus) | Ibu Warung | +40 Hunger | Personal | Tidak |
-| Air (Water Bottle) | Ibu Warung | +40 Thirst | Personal | Tidak |
+| Ciki (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Hunger, cooldown 5 dtk, tidak habis dipakai (DEC-018; menggantikan Nasi Bungkus +40) | Personal | Tidak |
+| Air (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Thirst, cooldown 5 dtk, tidak habis dipakai (DEC-018; menggantikan Water Bottle +40) | Personal | Tidak |
 | Obor | Crafting CP3 | Menembus gelap CP3→CP4, fuel 120 detik | Personal | Tidak |
 | Ikan | Diving CP4 | Quest opsional CP4 (semua jenis = "Fish") | Personal | Tidak |
 | Jimat | Penjaga Danau | Damage hantu lebih kecil, lebih sulit knock | Personal | Tidak |
@@ -80,6 +80,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
 - Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
 - Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
 - **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain mendekati titik ranting lalu MENAHAN ProximityPrompt "Ambil" selama 12 detik (`ResourceConfig...Prompt.HoldDuration`; durasi divalidasi server, DEC-015) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting yang terambil masuk inventory sebagai SATU Tool stack `Ranting xN` di Backpack (DEC-013/014); saat diserahkan, 10 ranting dikonsumsi dari inventory.
+- **Reward (instruksi 2026-10-20, DEC-018):** saat `CP1.TurnIn` berhasil, Ibu Warung memberi Tool **Air** dan **Ciki** ke Backpack (`QuestConfig...Rewards`, `InventoryService`). Meng-equip lalu menekan/mengetuk Tool menambah Thirst (Air) atau Hunger (Ciki) sebesar 5 poin (= 5% karena Max 100) dengan cooldown 5 detik per item per pemain (`SurvivalConfig.Consumables.Items`, divalidasi server di `ConsumableService`). Tool tidak habis dipakai. Template Tool: `ServerStorage.QuestModels.Air` / `.Ciki` (path BELUM diverifikasi di Studio; ubah di `ItemConfig`). Bila template hilang: quest tidak dimulai (Accept) / TurnIn ditolak sebelum ranting dikonsumsi.
 
 ### CP2 — Hutan Bambu
 `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
@@ -205,6 +206,6 @@ Notifikasi quest (toast + tujuan n/10) juga TIDAK memakai Remote: client membaca
 - **Q3 Damage hantu:** berapa damage dengan jimat vs tanpa jimat, dan ambang knock? Belum ada angka di GDD.
 - **Q4 Konteks "HP bar bertambah":** instruksi menyebut makanan menambah "hp bar dan thirsty bar". Diasumsikan hunger bar dan thirst bar (GDD: Nasi +40 Hunger, Air +40 Thirst). Konfirmasi.
 - **Q5 Solo/multiplayer:** apakah jumlah pemain terpilih memengaruhi gameplay (jumlah resource, kesulitan hantu)? GDD tidak menyebut.
-- **Q6 Tool makanan/minuman (reward CP1):** instruksi terbaru: reward quest = Tool makanan dan minuman di Backpack; saat di-equip menambah lapar/haus (menggantikan "shop", lihat DEC-011). Belum jelas: berapa banyak tiap Tool menambah (GDD +40?), apakah sekali pakai (hilang) atau bisa dipakai berulang, dan berapa jumlah Tool yang diberikan.
+- **Q6 Tool makanan/minuman (reward CP1):** SEBAGIAN TERJAWAB (DEC-018): 1 Air dan 1 Ciki, +5% per pakai, cooldown 5 dtk, tidak habis dipakai (diasumsikan dari "cooldown 5 detik"). Masih perlu konfirmasi: apakah Tool memang boleh dipakai tanpa batas, atau sekali pakai/berkurang.
 - **Q7 MaxStack ranting:** batas tumpukan ranting per pemain? Sementara 20 (CP1 butuh 10; batu maks 1 menurut GDD). Atur di `ItemConfig.Items.Ranting.MaxStack`.
 - **Q8 Inventory saat mati:** item tetap atau hilang saat pemain mati/respawn? Sementara tetap (DEC-013).

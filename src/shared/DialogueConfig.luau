@@ -132,12 +132,12 @@ local Config: Config = {
 				QuestReady = {
 					Text = "Wah, rantingnya sudah cukup {RantingTarget}! Sini, serahkan ke ibu.",
 					Choices = {
-						-- "CP1.TurnIn" ditangani QuestService. Reward (Tool makanan/minuman) menyusul di fase Backpack.
+						-- "CP1.TurnIn" ditangani QuestService (juga memberi reward Air dan Ciki ke Backpack).
 						{ Text = "Ini, Bu.", Next = "QuestDone", Action = "CP1.TurnIn" },
 					},
 				},
 				QuestDone = {
-					Text = "Terima kasih, Nak. Tungku ibu sudah bisa menyala.",
+					Text = "Terima kasih, Nak. Tungku ibu sudah bisa menyala. Ini ada air dan ciki buat bekal. Pegang, lalu tekan kalau haus atau lapar ya.",
 				},
 				QuestAfter = {
 					Text = "Tungku ibu sudah menyala berkat kamu. Hati-hati di atas sana, Nak.",

@@ -13,7 +13,9 @@
 	  4. Kembali ke Ibu Warung -> dialog node Entry.ReadyToTurnIn -> Action "CP1.TurnIn" -> Completed.
 	  Ranting yang terambil masuk inventory (Tool stack, ResourceService + InventoryService); saat
 	  TurnIn sebanyak Target dikonsumsi dari inventory. Bila tidak cukup, TurnIn ditolak.
-	  Reward (Tool makanan/minuman) BELUM ada; sistem Backpack nanti memakai Subscribe("Completed").
+	  Reward (QuestConfig...Rewards, mis. Tool Air dan Ciki) masuk inventory pada TurnIn yang sama,
+	  SEBELUM event "Completed". Template Tool reward dicek di Accept dan di TurnIn (sebelum ranting
+	  dikonsumsi): bila hilang, quest tidak dimulai / TurnIn ditolak dan ranting tidak hilang.
 
 	Replikasi ke client (read-only) lewat Player attribute, untuk Notification/HUD nanti:
 	  Quest_<id>_State    (string)
@@ -36,6 +38,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("QuestConfig") :: ModuleScript) :: any
 local ResourceConfig = require(Shared:WaitForChild("ResourceConfig") :: ModuleScript) :: any
+local ItemConfig = require(Shared:WaitForChild("ItemConfig") :: ModuleScript) :: any
 local DialogueConfig = require(Shared:WaitForChild("DialogueConfig") :: ModuleScript) :: any
 
 local Services = script.Parent :: Instance
@@ -86,6 +89,35 @@ local function emit(event: string, player: Player, questId: string, data: any)
 	end
 end
 
+-- Semua template Tool reward ada? (Tool tanpa template tidak bisa diberikan; pemain tidak boleh rugi.)
+local function rewardsAvailable(player: Player, questId: string, def: any): boolean
+	if def.Rewards == nil then
+		return true
+	end
+	for _, reward in def.Rewards do
+		if not InventoryService.IsAvailable(reward.ItemId) then
+			warn(`[QuestService] {questId}: template Tool reward '{reward.ItemId}' tidak tersedia; {player.Name} tidak diproses.`)
+			return false
+		end
+	end
+	return true
+end
+
+local function grantRewards(player: Player, questId: string, def: any)
+	if def.Rewards == nil then
+		return
+	end
+	for _, reward in def.Rewards do
+		local ok, added = InventoryService.AddItem(player, reward.ItemId, reward.Amount)
+		if ok then
+			log(`{player.Name} menerima reward {questId}: {reward.ItemId} x{added}`)
+		else
+			-- Stack penuh (mis. pemain sudah punya item itu) atau template hilang setelah pengecekan.
+			warn(`[QuestService] Reward {reward.ItemId} x{reward.Amount} untuk {player.Name} tidak masuk inventory ({questId}).`)
+		end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Transisi state
 --------------------------------------------------------------------------------
@@ -104,6 +136,10 @@ function QuestService.Accept(player: Player, questId: string): boolean
 	local def = quests[questId]
 	local entry = getEntry(player, questId)
 	if def == nil or entry == nil or entry.State ~= "None" then
+		return false
+	end
+	-- Jangan mulai quest yang rewardnya tidak bisa diberikan (pemain baru tahu setelah 10 ranting).
+	if not rewardsAvailable(player, questId, def) then
 		return false
 	end
 
@@ -128,6 +164,11 @@ function QuestService.TurnIn(player: Player, questId: string): boolean
 		return false
 	end
 
+	-- Template reward dicek dulu: bila hilang, TurnIn ditolak SEBELUM ranting dikonsumsi.
+	if not rewardsAvailable(player, questId, def) then
+		return false
+	end
+
 	-- Serahkan item dari inventory (atomik). Cek dulu sebelum mengubah state.
 	local itemId = ResourceConfig.Sets[def.ResourceSet].ItemId
 	if itemId ~= nil and not InventoryService.RemoveItem(player, itemId, def.Target) then
@@ -137,6 +178,7 @@ function QuestService.TurnIn(player: Player, questId: string): boolean
 
 	entry.State = "Completed"
 	writeAttributes(player, questId, entry)
+	grantRewards(player, questId, def)
 	log(`{player.Name} menyelesaikan {questId}`)
 	emit("Completed", player, questId, {})
 	return true
@@ -215,6 +257,19 @@ local function validateQuest(questId: string, def: any): boolean
 	for key, nodeId in def.Entry do
 		if npc.Nodes[nodeId] == nil then
 			return fail(`Entry.{key} menunjuk node '{tostring(nodeId)}' yang tidak ada di dialog {def.NpcId}`)
+		end
+	end
+	if def.Rewards ~= nil then
+		if type(def.Rewards) ~= "table" then
+			return fail("Rewards harus berupa array")
+		end
+		for index, reward in def.Rewards do
+			if type(reward) ~= "table" or ItemConfig.Items[reward.ItemId] == nil then
+				return fail(`Rewards[{index}].ItemId tidak ada di ItemConfig`)
+			end
+			if type(reward.Amount) ~= "number" or reward.Amount < 1 or reward.Amount ~= math.floor(reward.Amount) then
+				return fail(`Rewards[{index}].Amount harus bilangan bulat >= 1`)
+			end
 		end
 	end
 	return true

@@ -14,6 +14,10 @@
 		InventoryService.GetCount(player, itemId) -> number
 		InventoryService.AddItem(player, itemId, amount) -> (boolean, number)    -- (berhasil, jumlah masuk)
 		InventoryService.RemoveItem(player, itemId, amount) -> boolean           -- atomik: semua atau tidak sama sekali
+		InventoryService.OnToolCreated(fn) -> disconnect                         -- fn(player, itemId, tool)
+			Dipanggil setiap Tool item baru dibuat di Backpack (item pertama kali masuk, atau dibangun ulang
+			setelah respawn). Untuk sistem yang perlu menyambung event ke Tool (mis. ConsumableService).
+			Tool dengan ItemId sama TIDAK memicu ulang saat jumlah berubah.
 ]]
 
 local Players = game:GetService("Players")
@@ -31,6 +35,7 @@ local InventoryService = {}
 local counts: { [Player]: { [string]: number } } = {}
 local templates: { [string]: Tool } = {}
 local warnedMissing: { [string]: boolean } = {}
+local toolCreatedCallbacks: { (player: Player, itemId: string, tool: Tool) -> () } = {}
 local started = false
 
 local function isWholePositive(n: any): boolean
@@ -141,9 +146,15 @@ local function syncTool(player: Player, itemId: string)
 		clone:SetAttribute(ATTR_ITEM_ID, itemId)
 		clone.Parent = backpack
 		tool = clone
+		for _, callback in table.clone(toolCreatedCallbacks) do
+			local ok, err = pcall(callback, player, itemId, clone)
+			if not ok then
+				warn(`[InventoryService] Callback OnToolCreated error untuk {itemId}: {tostring(err)}`)
+			end
+		end
 	end
 
-	local label = `{def.DisplayName} x{count}`
+	local label = if def.ShowCount == false then def.DisplayName else `{def.DisplayName} x{count}`
 	local t = tool :: Tool
 	t:SetAttribute(ATTR_COUNT, count)
 	t.Name = label
@@ -200,6 +211,16 @@ function InventoryService.RemoveItem(player: Player, itemId: string, amount: num
 	inv[itemId] = have - amount
 	syncTool(player, itemId)
 	return true
+end
+
+function InventoryService.OnToolCreated(callback: (player: Player, itemId: string, tool: Tool) -> ()): () -> ()
+	table.insert(toolCreatedCallbacks, callback)
+	return function()
+		local index = table.find(toolCreatedCallbacks, callback)
+		if index ~= nil then
+			table.remove(toolCreatedCallbacks, index)
+		end
+	end
 end
 
 local function onPlayerAdded(player: Player)

@@ -72,6 +72,7 @@
 - Konteks: GDD/Q2 menyebut shop. Instruksi terbaru pengguna: setelah ranting terkumpul, quest memberi makanan dan minuman ke Backpack sebagai Tool; di-equip menambah lapar/haus.
 - Keputusan: ikuti instruksi terbaru. Detail (jumlah tambah, sekali pakai atau tidak, jumlah Tool) = Q6, menunggu jawaban pengguna. Dikerjakan di fase Quest/Backpack, bukan di Dialogue.
 - Dampak: Q2 praktis terjawab (tanpa currency/harga). Tool memakai `SurvivalService.Add`.
+- Status: DIIMPLEMENTASI lewat DEC-018 (2026-10-20).
 
 ## DEC-012 — Quest/Resource dipisah; pengambilan dideteksi server; resource personal digambar client
 - Tanggal: 2026-10-18
@@ -126,3 +127,17 @@
 - Interpretasi "setelah berdialog": tujuan hilang saat quest Completed (serah-terima sukses lewat pilihan "Ini, Bu."), BUKAN saat dialog sekadar dibuka. Membuka lalu menutup dialog di state ReadyToTurnIn tidak menghapus tujuan karena quest belum selesai.
 - Alasan: state personal sudah server-authoritative dan terreplikasi; client tidak bisa memalsukan progres karena hanya menampilkan. Menghindari Remote/listener paralel (`QuestService.Subscribe` tetap untuk sistem server).
 - Risiko: bergantung urutan replikasi attribute (diatasi coalesce); `QuestConfig.Debug` log server masih aktif; belum ada notifikasi stack penuh, reward, atau quest selesai.
+
+## DEC-018 — Reward CP1: Tool Air dan Ciki dari quest; pemakaian +5% dengan cooldown 5 dtk, dijaga server
+- Tanggal: 2026-10-20
+- Konteks: instruksi pengguna: setelah quest selesai, NPC_Warung memberi Air (Tool) dan Ciki (Tool, ber-Handle); saat ditekan menambah hunger/haus 5% dengan cooldown 5 detik. Menjawab sebagian Q6 dan melaksanakan DEC-011.
+- Keputusan:
+  - **Pemberian reward:** `QuestConfig.Quests[id].Rewards = { {ItemId, Amount} }` (opsional). `QuestService.TurnIn` memberi reward lewat `InventoryService.AddItem` pada transaksi yang sama dengan pengurangan ranting, SEBELUM event `Completed`. Pemilik tunggal progres/reward tetap `QuestService`; tidak ada logika quest di dialog atau di ConsumableService.
+  - **Item:** `Air` dan `Ciki` ditambah ke `ItemConfig.Items` (`MaxStack = 1`, `ShowCount = false` supaya nama Tool "Air"/"Ciki", bukan "Air x1"). `ItemDef.ShowCount` baru (opsional, default true; ranting tidak berubah). `TemplatePath` = `{"QuestModels","Air"/"Ciki"}` (mengikuti folder ranting; BELUM diverifikasi di Studio).
+  - **Pemakaian:** `SurvivalConfig.Consumables.Items[itemId] = { Stat, Amount, Cooldown }` (Air: Thirst +5/5 dtk; Ciki: Hunger +5/5 dtk). Satuan stat = persen dari Max (Max 100, jadi 5 poin = 5%). `ConsumableService` menyambung `Tool.Activated` lewat hook baru `InventoryService.OnToolCreated(fn)` (dipanggil tiap Tool item dibuat, termasuk dibangun ulang setelah respawn). Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
+  - **Validasi server (Activated):** Tool sedang di-equip pemain itu (`Parent == Character`), karakter hidup, item dimiliki menurut `InventoryService.GetCount` (bukan sekadar Tool ada), stat belum penuh (penuh: tidak ada efek dan cooldown tidak terpakai, sama dengan DEC-008), cooldown per pemain per item (`os.clock`, key `Item:<id>`, Air dan Ciki tidak berbagi cooldown).
+  - **Keamanan reward:** template Tool reward dicek di `Accept` (quest tidak dimulai bila hilang, pemain tidak mengumpulkan 10 ranting percuma) dan di `TurnIn` sebelum ranting dikonsumsi (ranting tidak hilang). Config reward divalidasi saat Start (ItemId harus ada di `ItemConfig`, Amount bilangan bulat >= 1); quest dengan config salah dilewati dengan warning.
+  - **Dialog:** teks node `QuestDone` menyebut air dan ciki (komentar `CP1.TurnIn` diperbarui).
+- Asumsi (perlu konfirmasi, Q6): Tool TIDAK habis dipakai (disimpulkan dari adanya cooldown 5 dtk); jumlah 1 Air dan 1 Ciki. Mengikuti instruksi terbaru, bukan GDD (+40 per item lewat shop). Hunger/Thirst +5 = konsisten dengan nilai awal 50 dan decay -1/10 dtk, jadi satu pakai setara 50 dtk decay; bila terasa terlalu kuat/lemah, ubah `Amount`/`Cooldown` di `SurvivalConfig` tanpa menyentuh logika.
+- Alternatif ditolak: Tool dibuat terpisah dengan Script sendiri (logika di klien/Tool, tidak server-authoritative dan duplikasi sistem inventory); sekali pakai dengan stack (bertentangan dengan cooldown yang diminta).
+- Risiko: `Tool.Activated` di server bergantung pada Tool ber-Handle yang di-equip (`RequiresHandle`); bila Tool buatan pengguna punya Script/LocalScript yang juga mengubah stat, itu akan di luar kendali sistem ini. Belum ada notifikasi/indikator cooldown di HUD; pemain yang menekan saat cooldown tidak mendapat umpan balik.

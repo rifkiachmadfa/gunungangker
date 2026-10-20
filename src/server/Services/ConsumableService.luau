@@ -14,6 +14,13 @@
 	Validasi server: karakter hidup, tag masih terpasang, jarak ke prompt, cooldown per pemain,
 	dan stat belum penuh (jika penuh: tidak ada efek dan cooldown tidak terpakai).
 	Objek tidak dihapus setelah dipakai; state bersifat personal (cooldown per pemain).
+
+	TOOL DI BACKPACK (Air, Ciki — reward CP1): Config.Consumables.Items[itemId].
+	  InventoryService memanggil OnToolCreated setiap Tool item dibuat; di sini Tool.Activated disambung.
+	  Pemain meng-equip Tool lalu menekan/mengetuk -> server validasi -> SurvivalService.Add.
+	  Validasi server: Tool sedang di-equip pemain itu (Parent = Character), karakter hidup, item benar-benar
+	  dimiliki (InventoryService.GetCount, bukan sekadar ada Tool-nya), stat belum penuh (penuh: tidak ada
+	  efek dan cooldown tidak terpakai), cooldown per pemain per item. Tool tidak habis dipakai (DEC-018).
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -21,11 +28,15 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SurvivalConfig") :: ModuleScript) :: any
+local ItemConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemConfig") :: ModuleScript) :: any
 local SurvivalService = require((script.Parent :: Instance):WaitForChild("SurvivalService") :: ModuleScript) :: any
+local InventoryService = require((script.Parent :: Instance):WaitForChild("InventoryService") :: ModuleScript) :: any
 
 local AMOUNT_ATTRIBUTE = "ConsumeAmount"
 local COOLDOWN_ATTRIBUTE = "ConsumeCooldown"
 local MAX_COOLDOWN = 3600
+-- Awalan key cooldown Tool di lastUse, agar tidak bentrok dengan typeName (Food/Drink) scope Player.
+local ITEM_KEY_PREFIX = "Item:"
 
 local ConsumableService = {}
 
@@ -39,6 +50,8 @@ type Binding = {
 local bindings: { [string]: { [Instance]: Binding } } = {}
 -- lastUse[player][key] = os.clock() terakhir berhasil. key = Instance (scope Object) atau typeName (scope Player).
 local lastUse: { [Player]: { [any]: number } } = {}
+-- Item Tool yang lolos validasi config: itemDefs[itemId] = Config.Consumables.Items[itemId].
+local itemDefs: { [string]: any } = {}
 local started = false
 
 local function readNumberAttribute(instance: Instance, name: string, default: number, minValue: number, maxValue: number): number
@@ -130,6 +143,47 @@ local function onTriggered(instance: Instance, typeName: string, def: any, bindi
 	end
 end
 
+local function onToolActivated(player: Player, itemId: string, tool: Tool)
+	local def = itemDefs[itemId]
+	if def == nil then
+		return
+	end
+
+	-- Tool harus sedang di-equip pemain ini dan karakternya hidup.
+	local character = player.Character
+	if character == nil or tool.Parent ~= character or getAliveRoot(player) == nil then
+		return
+	end
+
+	-- Kepemilikan dari data server (InventoryService), bukan dari keberadaan Tool.
+	if InventoryService.GetCount(player, itemId) < 1 then
+		return
+	end
+
+	-- Stat sudah penuh: tidak ada efek, cooldown tidak terpakai.
+	local statDef = Config.Stats[def.Stat]
+	local current = SurvivalService.Get(player, def.Stat)
+	if statDef == nil or current == nil or current >= statDef.Max then
+		return
+	end
+
+	-- Cooldown per pemain per item (Activated bisa dispam client).
+	local playerUse = lastUse[player]
+	if playerUse == nil then
+		return -- pemain sudah keluar
+	end
+	local key = ITEM_KEY_PREFIX .. itemId
+	local now = os.clock()
+	local last = playerUse[key]
+	if last ~= nil and now - last < def.Cooldown then
+		return
+	end
+
+	if SurvivalService.Add(player, def.Stat, def.Amount) ~= nil then
+		playerUse[key] = now
+	end
+end
+
 local function findOrCreatePrompt(instance: Instance, def: any): (ProximityPrompt?, boolean)
 	if instance:IsA("ProximityPrompt") then
 		return instance, false
@@ -214,6 +268,26 @@ local function validateDef(typeName: string, def: any): boolean
 	return true
 end
 
+local function validateItemDef(itemId: string, def: any): boolean
+	if ItemConfig.Items[itemId] == nil then
+		warn(`[ConsumableService] Config Consumables.Items.{itemId}: itemId tidak ada di ItemConfig.Items.`)
+		return false
+	end
+	if type(def) ~= "table" or Config.Stats[def.Stat] == nil then
+		warn(`[ConsumableService] Config Consumables.Items.{itemId}: Stat tidak valid.`)
+		return false
+	end
+	if type(def.Amount) ~= "number" or def.Amount ~= def.Amount or def.Amount <= 0 then
+		warn(`[ConsumableService] Config Consumables.Items.{itemId}: Amount harus > 0.`)
+		return false
+	end
+	if type(def.Cooldown) ~= "number" or def.Cooldown ~= def.Cooldown or def.Cooldown < 0 then
+		warn(`[ConsumableService] Config Consumables.Items.{itemId}: Cooldown harus >= 0.`)
+		return false
+	end
+	return true
+end
+
 function ConsumableService.Start()
 	if started then
 		return
@@ -245,6 +319,22 @@ function ConsumableService.Start()
 			unbind(typeName, instance)
 		end)
 	end
+
+	-- Tool di Backpack: sambungkan Tool.Activated tiap kali InventoryService membuat Tool item.
+	for itemId, def in Config.Consumables.Items do
+		if validateItemDef(itemId, def) then
+			itemDefs[itemId] = def
+		end
+	end
+	InventoryService.OnToolCreated(function(player: Player, itemId: string, tool: Tool)
+		if itemDefs[itemId] == nil then
+			return
+		end
+		-- Koneksi ikut hilang saat Tool dihancurkan (respawn / jumlah 0); Tool baru memicu callback lagi.
+		tool.Activated:Connect(function()
+			onToolActivated(player, itemId, tool)
+		end)
+	end)
 end
 
 return ConsumableService

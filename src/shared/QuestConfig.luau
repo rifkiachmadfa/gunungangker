@@ -18,10 +18,17 @@
 	      ActiveText    : teks tujuan selama state Active.
 	      ReadyText     : teks tujuan saat state ReadyToTurnIn (kembali ke NPC dan serahkan).
 	  Tujuan (objective) tampil saat Active dan ReadyToTurnIn, hilang saat Completed atau None.
+	  Rewards        : (opsional) { { ItemId, Amount } } item yang masuk ke inventory saat TurnIn berhasil.
+	                   ItemId harus ada di ItemConfig.Items.
 
 	State quest per pemain: None -> Active -> ReadyToTurnIn -> Completed.
-	Reward belum diimplementasi (menunggu Backpack/Tool); sistem lain memakai QuestService.Subscribe.
+	Reward item lewat Rewards (InventoryService). Efek lain (mis. membuka gate) memakai QuestService.Subscribe.
 ]]
+
+export type RewardDef = {
+	ItemId: string,
+	Amount: number,
+}
 
 export type QuestDef = {
 	Title: string,
@@ -44,6 +51,7 @@ export type QuestDef = {
 		ActiveText: string,
 		ReadyText: string,
 	},
+	Rewards: { RewardDef }?,
 }
 
 export type Config = {
@@ -75,6 +83,11 @@ local Config: Config = {
 				PickupText = "Mendapatkan Ranting",
 				ActiveText = "Kumpulkan ranting {Count}/{Target}",
 				ReadyText = "Ranting sudah cukup {Count}/{Target}. Kembali ke {Npc} dan serahkan ranting",
+			},
+			-- Ibu Warung memberi Air (+5% Thirst) dan Ciki (+5% Hunger); lihat SurvivalConfig.Consumables.Items.
+			Rewards = {
+				{ ItemId = "Air", Amount = 1 },
+				{ ItemId = "Ciki", Amount = 1 },
 			},
 		},
 	},

@@ -1,44 +1,39 @@
 diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
-index c17802b..5988c63 100644
+index 97e37c7..66a4368 100644
 --- a/.ai/CHANGELOG.md
 +++ b/.ai/CHANGELOG.md
-@@ -48,3 +48,8 @@
- - File/skrip: `src/server/Services/ResourceService.luau`, `src/client/Controllers/ResourceRenderer.luau`, `.ai/*`.
- - Hasil test: `luau-compile` OK. Uji mock renderer (Roblox di-mock, source asli): versi lama gagal 7 dari 8 skenario (client yang menyala sebelum template ada), versi baru lulus 8 dari 8. Uji mock server: template ada sebelum `Activate` pertama (lama: tidak). Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio, uji multiplayer nyata, `rojo build`.
- 
-+## 2026-10-20 (2) — Reward CP1: Tool Air dan Ciki
+@@ -54,3 +54,9 @@
+ - Sistem terdampak: bootstrap client, `QuestConfig` (tambah `Notify`). Server, Remote, dan mapping Rojo tidak berubah.
+ - File/skrip: `src/shared/QuestNotify.luau` (baru), `src/shared/QuestConfig.luau`, `src/client/UI/NotificationView.luau` (baru), `src/client/Controllers/NotificationController.luau` (baru), `src/client/init.client.luau`, `.ai/*`.
+ - Hasil test: simulasi logika (port JS dari `QuestNotify` + alur render controller, bukan Luau asli) 15/15 lulus: 0/10 tanpa toast, +1 toast per ranting, 10/10 pesan kembali ke NPC, hilang saat Completed, tanpa toast ganda saat refresh/reset, urutan State-lalu-Progress. Keseimbangan blok/kurung lolos. TIDAK dilakukan: `luau-analyze`/type-check, `rojo build` (tooling tidak ada di sandbox ini), uji Studio, uji multiplayer, uji mobile.
++
++## 2026-10-20 (c) — Reward CP1: Tool Air dan Ciki
 +- Perubahan: `CP1.TurnIn` memberi Tool Air dan Ciki ke Backpack (`QuestConfig...Rewards`); meng-equip lalu menekan Tool menambah Thirst/Hunger +5 poin (5%) dengan cooldown 5 dtk per item per pemain, divalidasi server (`ConsumableService`, `Tool.Activated`). `InventoryService`: opsi `ShowCount` dan hook `OnToolCreated`. Template reward dicek di Accept dan TurnIn (ranting tidak hilang bila template tidak ada). Teks dialog `QuestDone` menyebut reward.
 +- Sistem terdampak: Quest, Inventory, Survival/Consumable, Dialogue (teks saja). Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
 +- File/skrip: `src/shared/ItemConfig.luau`, `src/shared/QuestConfig.luau`, `src/shared/SurvivalConfig.luau`, `src/shared/DialogueConfig.luau`, `src/server/Services/InventoryService.luau`, `src/server/Services/ConsumableService.luau`, `src/server/Services/QuestService.luau`, `.ai/*`.
 +- Hasil test: `luau-compile` OK untuk 7 file; `luau-analyze` tanpa error baru (satu TypeError di `QuestService` sudah ada di HEAD, akibat tipe Roblox tidak tersedia). Uji mock (Roblox di-mock, modul asli Inventory/Consumable/Survival/Quest; Dialogue dan Resource di-stub): 51 uji lulus; 13 mutasi sengaja (cooldown, cek equip, stat penuh, kepemilikan, cek hidup, cooldown dibagi, jumlah tambah, precheck TurnIn/Accept, reward tidak diberikan, urutan reward vs event Completed, ShowCount, hook OnToolCreated) semuanya tertangkap; skenario config reward salah lulus. Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio (Tool asli, Handle, equip/Activated nyata, mobile), uji multiplayer nyata, `rojo build`.
 diff --git a/.ai/CURRENT_STATE.md b/.ai/CURRENT_STATE.md
-index 093b1bb..824cde8 100644
+index 5e2b43e..f4ab115 100644
 --- a/.ai/CURRENT_STATE.md
 +++ b/.ai/CURRENT_STATE.md
-@@ -1,6 +1,6 @@
- # CURRENT STATE
- 
--Last updated: 2026-10-18
-+Last updated: 2026-10-20
- Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
- Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) belum di-commit (diserahkan sebagai patch)
- 
-@@ -10,12 +10,13 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
+@@ -10,6 +10,7 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
  - Dialogue System (NPC_Warung): TERIMPLEMENTASI, BELUM TERUJI di Studio. Butuh NPC_Warung + ProximityPrompt di Workspace.
  - Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
  - Pengambilan ranting via ProximityPrompt TAHAN 12 dtk (`ResourceService` mode `Prompt` + `ResourceRenderer`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Prompt `ResourcePrompt` dibuat server di tiap Part titik spawn; durasi tahan diukur server (HoldBegan→Triggered). Lulus 104/101 uji mock (dua skenario template). Prompt hanya dibuat saat quest pertama kali diterima.
-+- Reward CP1 (Tool Air + Ciki, DEC-017): TERIMPLEMENTASI, BELUM TERUJI di Studio. `QuestService.TurnIn` memberi 1 Air + 1 Ciki; equip + tekan = +5% Thirst/Hunger, cooldown 5 dtk per item, divalidasi server (`ConsumableService`). Butuh Tool template ber-`Handle` di `ServerStorage.QuestModels.Air` dan `.Ciki` (path belum diverifikasi). Lulus 51 uji mock + 13 mutasi (lihat CHANGELOG).
++- Reward CP1 (Tool Air + Ciki, DEC-018): TERIMPLEMENTASI, BELUM TERUJI di Studio. `QuestService.TurnIn` memberi 1 Air + 1 Ciki; equip + tekan = +5% Thirst/Hunger, cooldown 5 dtk per item, divalidasi server (`ConsumableService`). Butuh Tool template ber-`Handle` di `ServerStorage.QuestModels.Air` dan `.Ciki` (path belum diverifikasi). Lulus 51 uji mock + 13 mutasi (lihat CHANGELOG).
  - Inventory stackable (`InventoryService` + `ItemConfig`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Ranting yang terambil (`ResourceConfig...ItemId`) masuk sebagai SATU Tool `Ranting xN` di Backpack; `QuestService.TurnIn` mengonsumsi `Target` item. Butuh Tool template di `ServerStorage.QuestModels` (path di `ItemConfig`, Tool dengan `Handle`). Lulus 50 uji mock di luar Roblox (lihat CHANGELOG).
  
+ - Notification System quest CP1 (toast + kartu tujuan n/10, `NotificationView`/`NotificationController`/`QuestNotify`): TERIMPLEMENTASI (2026-10-20), BELUM TERUJI di Studio. Client-only, membaca Attribute `Quest_<id>_State/Progress`; tanpa Remote baru.
+@@ -17,7 +18,7 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
  ## Incomplete systems
- - Notification System (UI) dan UI Backpack kustom: belum dimulai (Tool memakai Backpack bawaan Roblox). Belum ada notifikasi "Ranting penuh". Event quest sudah dipancarkan, UI-nya belum ada.
+ - UI Backpack kustom: belum dimulai (Tool memakai Backpack bawaan Roblox). Belum ada notifikasi "Ranting penuh" (stack penuh) dan notifikasi reward/quest selesai.
  - Efek hunger/thirst = 0 (knock/slow) belum ada, menunggu Q1.
 -- Makan/minum lewat Tool di Backpack (reward quest CP1, DEC-011) menunggu Quest/Backpack; API server `SurvivalService.Add` sudah siap.
 +- Indikator cooldown Tool Air/Ciki di HUD dan notifikasi "dapat reward": belum ada (menunggu Notification System).
  - Sistem gameplay lain belum dimulai.
  
  ## Known bugs
-@@ -31,13 +32,15 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
+@@ -34,13 +35,15 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
  - Dialogue + Quest CP1: tes di Studio (lihat langkah di respons sesi 2026-10-18), 1 pemain lalu 2+ pemain.
  - Inventory ranting: tes di Studio (Tool terbentuk, satu slot, respawn, serah-terima mengonsumsi), 1 lalu 2+ pemain.
  - Prompt ranting: tes di Studio (prompt muncul hanya di titik aktif, tahan 12 dtk, lepas dini = batal, 2 pemain). Bila prompt tidak pernah selesai, cek Output (`ResourceConfig.Debug` mencetak alasan penolakan).
@@ -46,8 +41,8 @@ index 093b1bb..824cde8 100644
  - Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
  
  ## Next task
--- Notification System (toast UI; memakai `QuestService.Subscribe`), lalu reward: Backpack/Tool makanan-minuman saat quest Completed (jawab Q6 dulu), lalu gate CP1.
-+- Notification System (toast UI; memakai `QuestService.Subscribe`; termasuk umpan balik reward dan cooldown Tool), lalu gate CP1. Konfirmasi Q6 (Tool Air/Ciki memang tak habis dipakai?).
+-- Tes Studio notifikasi (lihat CHANGELOG 2026-10-20 b), lalu reward: Backpack/Tool makanan-minuman saat quest Completed (jawab Q6 dulu), lalu gate CP1.
++- Tes Studio notifikasi (lihat CHANGELOG 2026-10-20 b) dan reward Air/Ciki (lihat CHANGELOG 2026-10-20 c), lalu gate CP1. Konfirmasi Q6 (Tool Air/Ciki memang tak habis dipakai?). Indikator cooldown Tool dan toast reward bisa menyusul di Notification System.
  - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
  
  ## Dependencies / blockers
@@ -56,22 +51,23 @@ index 093b1bb..824cde8 100644
  1. (Teratasi) `default.project.json` dan `src/` sudah ada.
  2. Dump hierarchy Workspace dari Studio (folder, Part, NPC, spawn point, Tag, Attribute) atau akses Studio MCP.
 diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
-index 0b49e1a..58578a3 100644
+index 1f10d4a..761df22 100644
 --- a/.ai/DECISIONS.md
 +++ b/.ai/DECISIONS.md
 @@ -72,6 +72,7 @@
  - Konteks: GDD/Q2 menyebut shop. Instruksi terbaru pengguna: setelah ranting terkumpul, quest memberi makanan dan minuman ke Backpack sebagai Tool; di-equip menambah lapar/haus.
  - Keputusan: ikuti instruksi terbaru. Detail (jumlah tambah, sekali pakai atau tidak, jumlah Tool) = Q6, menunggu jawaban pengguna. Dikerjakan di fase Quest/Backpack, bukan di Dialogue.
  - Dampak: Q2 praktis terjawab (tanpa currency/harga). Tool memakai `SurvivalService.Add`.
-+- Status: DIIMPLEMENTASI lewat DEC-017 (2026-10-20).
++- Status: DIIMPLEMENTASI lewat DEC-018 (2026-10-20).
  
  ## DEC-012 — Quest/Resource dipisah; pengambilan dideteksi server; resource personal digambar client
  - Tanggal: 2026-10-18
-@@ -117,3 +118,16 @@
- - Alasan: kegagalan menunggu template tidak boleh mematikan seluruh renderer pemain. Dua lapis supaya salah satu saja yang gagal tidak mengulang bug.
- - Dampak: tidak ada Remote baru, tidak ada perubahan kontrak. Pembuatan prompt di spawner (`ensurePrompts`) tetap saat `Activate` pertama (utang DEC-015 tidak diubah).
- 
-+## DEC-017 — Reward CP1: Tool Air dan Ciki dari quest; pemakaian +5% dengan cooldown 5 dtk, dijaga server
+@@ -126,3 +127,17 @@
+ - Interpretasi "setelah berdialog": tujuan hilang saat quest Completed (serah-terima sukses lewat pilihan "Ini, Bu."), BUKAN saat dialog sekadar dibuka. Membuka lalu menutup dialog di state ReadyToTurnIn tidak menghapus tujuan karena quest belum selesai.
+ - Alasan: state personal sudah server-authoritative dan terreplikasi; client tidak bisa memalsukan progres karena hanya menampilkan. Menghindari Remote/listener paralel (`QuestService.Subscribe` tetap untuk sistem server).
+ - Risiko: bergantung urutan replikasi attribute (diatasi coalesce); `QuestConfig.Debug` log server masih aktif; belum ada notifikasi stack penuh, reward, atau quest selesai.
++
++## DEC-018 — Reward CP1: Tool Air dan Ciki dari quest; pemakaian +5% dengan cooldown 5 dtk, dijaga server
 +- Tanggal: 2026-10-20
 +- Konteks: instruksi pengguna: setelah quest selesai, NPC_Warung memberi Air (Tool) dan Ciki (Tool, ber-Handle); saat ditekan menambah hunger/haus 5% dengan cooldown 5 detik. Menjawab sebagian Q6 dan melaksanakan DEC-011.
 +- Keputusan:
@@ -85,7 +81,7 @@ index 0b49e1a..58578a3 100644
 +- Alternatif ditolak: Tool dibuat terpisah dengan Script sendiri (logika di klien/Tool, tidak server-authoritative dan duplikasi sistem inventory); sekali pakai dengan stack (bertentangan dengan cooldown yang diminta).
 +- Risiko: `Tool.Activated` di server bergantung pada Tool ber-Handle yang di-equip (`RequiresHandle`); bila Tool buatan pengguna punya Script/LocalScript yang juga mengubah stat, itu akan di luar kendali sistem ini. Belum ada notifikasi/indikator cooldown di HUD; pemain yang menekan saat cooldown tidak mendapat umpan balik.
 diff --git a/.ai/GAME_CONTEXT.md b/.ai/GAME_CONTEXT.md
-index fb83585..2ce6f86 100644
+index faf1ce2..2aa3c08 100644
 --- a/.ai/GAME_CONTEXT.md
 +++ b/.ai/GAME_CONTEXT.md
 @@ -47,8 +47,8 @@ Knock dan pemulihan: **[OPEN]** (Q1).
@@ -94,8 +90,8 @@ index fb83585..2ce6f86 100644
  | Batu | Spawn CP2 | Quest CP2/CP3 (maks 1) | Personal | Tidak |
 -| Makanan (Nasi Bungkus) | Ibu Warung | +40 Hunger | Personal | Tidak |
 -| Air (Water Bottle) | Ibu Warung | +40 Thirst | Personal | Tidak |
-+| Ciki (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Hunger, cooldown 5 dtk, tidak habis dipakai (DEC-017; menggantikan Nasi Bungkus +40) | Personal | Tidak |
-+| Air (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Thirst, cooldown 5 dtk, tidak habis dipakai (DEC-017; menggantikan Water Bottle +40) | Personal | Tidak |
++| Ciki (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Hunger, cooldown 5 dtk, tidak habis dipakai (DEC-018; menggantikan Nasi Bungkus +40) | Personal | Tidak |
++| Air (Tool) | Reward quest CP1 (Ibu Warung) | Equip lalu tekan: +5% Thirst, cooldown 5 dtk, tidak habis dipakai (DEC-018; menggantikan Water Bottle +40) | Personal | Tidak |
  | Obor | Crafting CP3 | Menembus gelap CP3→CP4, fuel 120 detik | Personal | Tidak |
  | Ikan | Diving CP4 | Quest opsional CP4 (semua jenis = "Fish") | Personal | Tidak |
  | Jimat | Penjaga Danau | Damage hantu lebih kecil, lebih sulit knock | Personal | Tidak |
@@ -103,32 +99,32 @@ index fb83585..2ce6f86 100644
  - Serahkan 10 ranting → shop terbuka (Water Bottle +40 Thirst, Nasi Bungkus +40 Hunger). Sebelum selesai, shop terkunci. Harga/currency: **[OPEN]** (Q2).
  - Selesai: "Jalan ke atas sudah terbuka", gate CP1 terbuka.
  - **Implementasi saat ini (instruksi 2026-10-18):** terima quest lewat dialog → 10 ranting aktif (personal) dari 20 titik; pemain mendekati titik ranting lalu MENAHAN ProximityPrompt "Ambil" selama 12 detik (`ResourceConfig...Prompt.HoldDuration`; durasi divalidasi server, DEC-015) → ranting terambil, progres +1, ranting muncul lagi `RespawnDelay` detik kemudian di titik BERBEDA; 10/10 → state ReadyToTurnIn (+ event untuk notifikasi); kembali ke Ibu Warung → serahkan → Completed. Reward Tool makanan/minuman + gate menyusul (DEC-011/Q6). Ranting yang terambil masuk inventory sebagai SATU Tool stack `Ranting xN` di Backpack (DEC-013/014); saat diserahkan, 10 ranting dikonsumsi dari inventory.
-+- **Reward (instruksi 2026-10-20, DEC-017):** saat `CP1.TurnIn` berhasil, Ibu Warung memberi Tool **Air** dan **Ciki** ke Backpack (`QuestConfig...Rewards`, `InventoryService`). Meng-equip lalu menekan/mengetuk Tool menambah Thirst (Air) atau Hunger (Ciki) sebesar 5 poin (= 5% karena Max 100) dengan cooldown 5 detik per item per pemain (`SurvivalConfig.Consumables.Items`, divalidasi server di `ConsumableService`). Tool tidak habis dipakai. Template Tool: `ServerStorage.QuestModels.Air` / `.Ciki` (path BELUM diverifikasi di Studio; ubah di `ItemConfig`). Bila template hilang: quest tidak dimulai (Accept) / TurnIn ditolak sebelum ranting dikonsumsi.
++- **Reward (instruksi 2026-10-20, DEC-018):** saat `CP1.TurnIn` berhasil, Ibu Warung memberi Tool **Air** dan **Ciki** ke Backpack (`QuestConfig...Rewards`, `InventoryService`). Meng-equip lalu menekan/mengetuk Tool menambah Thirst (Air) atau Hunger (Ciki) sebesar 5 poin (= 5% karena Max 100) dengan cooldown 5 detik per item per pemain (`SurvivalConfig.Consumables.Items`, divalidasi server di `ConsumableService`). Tool tidak habis dipakai. Template Tool: `ServerStorage.QuestModels.Air` / `.Ciki` (path BELUM diverifikasi di Studio; ubah di `ItemConfig`). Bila template hilang: quest tidak dimulai (Accept) / TurnIn ditolak sebelum ranting dikonsumsi.
  
  ### CP2 — Hutan Bambu
  `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
-@@ -204,6 +205,6 @@ Quest/Resource TIDAK memakai Remote: pengambilan dideteksi server (posisi pemain
+@@ -205,6 +206,6 @@ Notifikasi quest (toast + tujuan n/10) juga TIDAK memakai Remote: client membaca
  - **Q3 Damage hantu:** berapa damage dengan jimat vs tanpa jimat, dan ambang knock? Belum ada angka di GDD.
  - **Q4 Konteks "HP bar bertambah":** instruksi menyebut makanan menambah "hp bar dan thirsty bar". Diasumsikan hunger bar dan thirst bar (GDD: Nasi +40 Hunger, Air +40 Thirst). Konfirmasi.
  - **Q5 Solo/multiplayer:** apakah jumlah pemain terpilih memengaruhi gameplay (jumlah resource, kesulitan hantu)? GDD tidak menyebut.
 -- **Q6 Tool makanan/minuman (reward CP1):** instruksi terbaru: reward quest = Tool makanan dan minuman di Backpack; saat di-equip menambah lapar/haus (menggantikan "shop", lihat DEC-011). Belum jelas: berapa banyak tiap Tool menambah (GDD +40?), apakah sekali pakai (hilang) atau bisa dipakai berulang, dan berapa jumlah Tool yang diberikan.
-+- **Q6 Tool makanan/minuman (reward CP1):** SEBAGIAN TERJAWAB (DEC-017): 1 Air dan 1 Ciki, +5% per pakai, cooldown 5 dtk, tidak habis dipakai (diasumsikan dari "cooldown 5 detik"). Masih perlu konfirmasi: apakah Tool memang boleh dipakai tanpa batas, atau sekali pakai/berkurang.
++- **Q6 Tool makanan/minuman (reward CP1):** SEBAGIAN TERJAWAB (DEC-018): 1 Air dan 1 Ciki, +5% per pakai, cooldown 5 dtk, tidak habis dipakai (diasumsikan dari "cooldown 5 detik"). Masih perlu konfirmasi: apakah Tool memang boleh dipakai tanpa batas, atau sekali pakai/berkurang.
  - **Q7 MaxStack ranting:** batas tumpukan ranting per pemain? Sementara 20 (CP1 butuh 10; batu maks 1 menurut GDD). Atur di `ItemConfig.Items.Ranting.MaxStack`.
  - **Q8 Inventory saat mati:** item tetap atau hilang saat pemain mati/respawn? Sementara tetap (DEC-013).
 diff --git a/.ai/TASKS.md b/.ai/TASKS.md
-index 1656b72..e76f4cb 100644
+index 5408ce1..6c7bec8 100644
 --- a/.ai/TASKS.md
 +++ b/.ai/TASKS.md
-@@ -1,6 +1,7 @@
- # TASKS
+@@ -2,6 +2,7 @@
  
  ## In progress
+ - [ ] PHASE 1 (sebagian) — Notification System quest CP1: kode selesai; menunggu tes Studio (toast, n/10, pesan kembali ke NPC, hilang setelah serah, 2 pemain)
 +- [ ] PHASE 2 (sebagian) — Reward CP1 Tool Air + Ciki (+5%, cooldown 5 dtk): kode selesai & lulus uji mock; menunggu tes Studio (template Tool, equip/Activated, respawn, 2 pemain)
  - [ ] PHASE 1 (sebagian) — Inventory stackable + ranting sebagai Tool: kode selesai & lulus uji mock; menunggu tes Studio (template Tool, respawn, serah-terima, 2 pemain)
  - [ ] PHASE 0 — Repository & project audit (repo dan dokumentasi selesai; Rojo dan Studio terhambat)
  
 diff --git a/src/server/Services/ConsumableService.luau b/src/server/Services/ConsumableService.luau
-index 18868cd..176dc4b 100644
+index 18868cd..5a7668e 100644
 --- a/src/server/Services/ConsumableService.luau
 +++ b/src/server/Services/ConsumableService.luau
 @@ -14,6 +14,13 @@
@@ -141,7 +137,7 @@ index 18868cd..176dc4b 100644
 +	  Pemain meng-equip Tool lalu menekan/mengetuk -> server validasi -> SurvivalService.Add.
 +	  Validasi server: Tool sedang di-equip pemain itu (Parent = Character), karakter hidup, item benar-benar
 +	  dimiliki (InventoryService.GetCount, bukan sekadar ada Tool-nya), stat belum penuh (penuh: tidak ada
-+	  efek dan cooldown tidak terpakai), cooldown per pemain per item. Tool tidak habis dipakai (DEC-017).
++	  efek dan cooldown tidak terpakai), cooldown per pemain per item. Tool tidak habis dipakai (DEC-018).
  ]]
  
  local CollectionService = game:GetService("CollectionService")
@@ -455,7 +451,7 @@ index 37cd8b8..c848b30 100644
  				QuestAfter = {
  					Text = "Tungku ibu sudah menyala berkat kamu. Hati-hati di atas sana, Nak.",
 diff --git a/src/shared/ItemConfig.luau b/src/shared/ItemConfig.luau
-index 581fcbe..24118da 100644
+index 581fcbe..92f80dc 100644
 --- a/src/shared/ItemConfig.luau
 +++ b/src/shared/ItemConfig.luau
 @@ -10,14 +10,19 @@
@@ -485,7 +481,7 @@ index 581fcbe..24118da 100644
 +
 +		-- Reward CP1 (QuestConfig.Quests.CP1_Ranting.Rewards). Tool bernama "Air" dan "Ciki" dengan Part "Handle".
 +		-- TemplatePath mengikuti konvensi folder QuestModels, BELUM diverifikasi di Studio: ubah bila Tool
-+		-- ada di folder lain di ServerStorage. Satu Tool per item, tidak habis dipakai (lihat DEC-017).
++		-- ada di folder lain di ServerStorage. Satu Tool per item, tidak habis dipakai (lihat DEC-018).
 +		Air = {
 +			DisplayName = "Air",
 +			TemplatePath = { "QuestModels", "Air" },
@@ -502,13 +498,13 @@ index 581fcbe..24118da 100644
  }
  
 diff --git a/src/shared/QuestConfig.luau b/src/shared/QuestConfig.luau
-index bd0e987..b4b73c3 100644
+index d779edb..0c3933e 100644
 --- a/src/shared/QuestConfig.luau
 +++ b/src/shared/QuestConfig.luau
-@@ -13,11 +13,18 @@
- 	  VariablePrefix : membuat variabel teks dialog {<Prefix>Count} dan {<Prefix>Target}.
- 	  Actions        : nama Action dialog yang ditangani QuestService (Accept, TurnIn).
- 	  Entry          : node dialog awal NPC per state quest (state None memakai node Start biasa).
+@@ -18,11 +18,18 @@
+ 	      ActiveText    : teks tujuan selama state Active.
+ 	      ReadyText     : teks tujuan saat state ReadyToTurnIn (kembali ke NPC dan serahkan).
+ 	  Tujuan (objective) tampil saat Active dan ReadyToTurnIn, hilang saat Completed atau None.
 +	  Rewards        : (opsional) { { ItemId, Amount } } item yang masuk ke inventory saat TurnIn berhasil.
 +	                   ItemId harus ada di ItemConfig.Items.
  
@@ -525,17 +521,17 @@ index bd0e987..b4b73c3 100644
  export type QuestDef = {
  	Title: string,
  	Type: string,
-@@ -34,6 +41,7 @@ export type QuestDef = {
- 		ReadyToTurnIn: string,
- 		Completed: string,
+@@ -44,6 +51,7 @@ export type QuestDef = {
+ 		ActiveText: string,
+ 		ReadyText: string,
  	},
 +	Rewards: { RewardDef }?,
  }
  
  export type Config = {
-@@ -61,6 +69,11 @@ local Config: Config = {
- 				ReadyToTurnIn = "QuestReady",
- 				Completed = "QuestAfter",
+@@ -76,6 +84,11 @@ local Config: Config = {
+ 				ActiveText = "Kumpulkan ranting {Count}/{Target}",
+ 				ReadyText = "Ranting sudah cukup {Count}/{Target}. Kembali ke {Npc} dan serahkan ranting",
  			},
 +			-- Ibu Warung memberi Air (+5% Thirst) dan Ciki (+5% Hunger); lihat SurvivalConfig.Consumables.Items.
 +			Rewards = {
