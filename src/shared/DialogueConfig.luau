@@ -147,6 +147,75 @@ local Config: Config = {
 				},
 			},
 		},
+
+		-- CP2 — Taufik, penjaga jalan di Hutan Bambu. Butuh KAYU dan TALI untuk memperbaiki palang jalan,
+		-- lalu membuka jalan ke atas. Tidak ada angka/variabel jumlah di teks (jumlah belum ditentukan).
+		-- Dialog BELUM terhubung ke Quest System: Action di bawah dilewati (warning sekali) sampai ada
+		-- handler. Node Quest* tidak tercapai dari Start; dipilih QuestService nanti lewat EntryResolver
+		-- (nama node mengikuti pola CP1: QuestActive / QuestReady / QuestAfter).
+		Taufik = {
+			DisplayName = "Taufik",
+			ModelName = "NPC_Taufik",
+			Start = "Greeting",
+			Nodes = {
+				Greeting = {
+					Text = "Berhenti dulu, Dik. Jalan ke atas lewat sini, dan saya yang jaga. Hutan bambu ini bukan tempat buat jalan sembarangan.",
+					Choices = {
+						{ Text = "Saya mau naik ke atas, Mas.", Next = "AskMaterials" },
+						{ Text = "Memangnya ada apa di atas?", Next = "Warning" },
+						{ Text = "Cuma lihat-lihat, Mas.", Next = "Farewell" },
+					},
+				},
+				Warning = {
+					Text = "Namanya juga gunung, Dik. Makin ke atas makin sepi dan makin gelap. Kalau ada yang bisik-bisik di rumpun bambu, itu bukan angin. Jangan dijawab kalau ada yang manggil nama kamu.",
+					Choices = {
+						{ Text = "Saya tetap mau naik.", Next = "AskMaterials" },
+						{ Text = "Saya pikir-pikir dulu, Mas.", Next = "Later" },
+					},
+				},
+				AskMaterials = {
+					Text = "Boleh, tapi palang jalan di pos ini rusak. Saya tidak bisa jaga jalan dengan palang begitu. Bantu saya cari kayu dan tali buat memperbaikinya. Setelah itu jalannya saya buka.",
+					Choices = {
+						-- "CP2.AcceptQuest" belum punya handler (menunggu Quest System CP2).
+						{ Text = "Baik, Mas. Saya carikan.", Next = "Accepted", Action = "CP2.AcceptQuest" },
+						{ Text = "Kayu dan tali? Cari di mana, Mas?", Next = "Hint" },
+						{ Text = "Nanti saja, Mas.", Next = "Later" },
+					},
+				},
+				Hint = {
+					Text = "Cari di sekitar hutan bambu ini saja. Pelan-pelan, Dik, dan jangan jauh-jauh dari jalan setapak. Hutan ini cepat gelap.",
+					Choices = {
+						{ Text = "Baik, Mas. Saya carikan.", Next = "Accepted", Action = "CP2.AcceptQuest" },
+						{ Text = "Nanti saja, Mas.", Next = "Later" },
+					},
+				},
+				Accepted = {
+					Text = "Terima kasih, Dik. Saya tunggu di sini. Jangan lama-lama ya.",
+				},
+				Later = {
+					Text = "Ya sudah. Palangnya masih rusak, jadi jalan belum bisa saya buka. Kalau sudah siap, balik lagi ke saya.",
+				},
+				QuestActive = {
+					Text = "Kayu dan talinya belum cukup, Dik. Cari lagi di sekitar hutan bambu ini. Saya tunggu di sini.",
+				},
+				QuestReady = {
+					Text = "Nah, kayu dan talinya sudah cukup! Sini, serahkan ke saya, biar palangnya saya betulkan.",
+					Choices = {
+						-- "CP2.TurnIn" belum punya handler (menunggu Quest System CP2).
+						{ Text = "Ini, Mas.", Next = "QuestDone", Action = "CP2.TurnIn" },
+					},
+				},
+				QuestDone = {
+					Text = "Terima kasih, Dik. Palangnya sudah kuat lagi, jalan ke atas saya buka. Hati-hati, di atas sana lebih gelap dari di sini.",
+				},
+				QuestAfter = {
+					Text = "Jalannya sudah terbuka, Dik. Terus naik, dan jangan menoleh kalau ada yang manggil dari belakang.",
+				},
+				Farewell = {
+					Text = "Ya sudah. Hati-hati, Dik. Jangan keluar dari jalan setapak.",
+				},
+			},
+		},
 	},
 }
 

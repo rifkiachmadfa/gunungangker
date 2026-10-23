@@ -1,6 +1,7 @@
 # TASKS
 
 ## In progress
+- [ ] PHASE 3 (sebagian) — Dialog NPC_Taufik (CP2): data selesai & lulus uji mock; menunggu tes Studio. Quest System + Notification CP2 (kayu dan tali) BELUM dikerjakan, menunggu Q9
 - [ ] PHASE 1 (sebagian) — Notification System quest CP1: kode selesai; menunggu tes Studio (toast, n/10, pesan kembali ke NPC, hilang setelah serah, 2 pemain)
 - [ ] PHASE 2 (sebagian) — Reward CP1 Tool Air + Ciki (+5%, cooldown 5 dtk): kode selesai & lulus uji mock; menunggu tes Studio (template Tool, equip/Activated, respawn, 2 pemain)
 - [ ] PHASE 1 (sebagian) — Inventory stackable + ranting sebagai Tool: kode selesai & lulus uji mock; menunggu tes Studio (template Tool, respawn, serah-terima, 2 pemain)

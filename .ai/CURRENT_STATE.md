@@ -1,6 +1,6 @@
 # CURRENT STATE
 
-Last updated: 2026-10-20
+Last updated: 2026-10-23
 Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
 Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) belum di-commit (diserahkan sebagai patch)
 
@@ -11,6 +11,7 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
 - Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
 - Pengambilan ranting via ProximityPrompt TAHAN 12 dtk (`ResourceService` mode `Prompt` + `ResourceRenderer`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Prompt `ResourcePrompt` dibuat server di tiap Part titik spawn; durasi tahan diukur server (HoldBegan→Triggered). Lulus 104/101 uji mock (dua skenario template). Prompt hanya dibuat saat quest pertama kali diterima.
 - Reward CP1 (Tool Air + Ciki, DEC-018): TERIMPLEMENTASI, BELUM TERUJI di Studio. `QuestService.TurnIn` memberi 1 Air + 1 Ciki; equip + tekan = +5% Thirst/Hunger, cooldown 5 dtk per item, divalidasi server (`ConsumableService`). Butuh Tool template ber-`Handle` di `ServerStorage.QuestModels.Air` dan `.Ciki` (path belum diverifikasi). Lulus 51 uji mock + 13 mutasi (lihat CHANGELOG).
+- Dialog NPC_Taufik (CP2, DEC-019): DATA dialog selesai, BELUM TERUJI di Studio. Butuh `NPC_Taufik` (nama unik, ProximityPrompt) di Workspace. Belum ada quest, item Kayu/Tali, notifikasi, atau gate CP2; Action `CP2.AcceptQuest`/`CP2.TurnIn` dilewati (warning sekali) sampai Quest System CP2 ada. Lulus 98 uji mock + 11 mutasi (lihat CHANGELOG 2026-10-23).
 - Inventory stackable (`InventoryService` + `ItemConfig`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Ranting yang terambil (`ResourceConfig...ItemId`) masuk sebagai SATU Tool `Ranting xN` di Backpack; `QuestService.TurnIn` mengonsumsi `Target` item. Butuh Tool template di `ServerStorage.QuestModels` (path di `ItemConfig`, Tool dengan `Handle`). Lulus 50 uji mock di luar Roblox (lihat CHANGELOG).
 
 - Notification System quest CP1 (toast + kartu tujuan n/10, `NotificationView`/`NotificationController`/`QuestNotify`): TERIMPLEMENTASI (2026-10-20), BELUM TERUJI di Studio. Client-only, membaca Attribute `Quest_<id>_State/Progress`; tanpa Remote baru.
@@ -35,14 +36,17 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
 - Dialogue + Quest CP1: tes di Studio (lihat langkah di respons sesi 2026-10-18), 1 pemain lalu 2+ pemain.
 - Inventory ranting: tes di Studio (Tool terbentuk, satu slot, respawn, serah-terima mengonsumsi), 1 lalu 2+ pemain.
 - Prompt ranting: tes di Studio (prompt muncul hanya di titik aktif, tahan 12 dtk, lepas dini = batal, 2 pemain). Bila prompt tidak pernah selesai, cek Output (`ResourceConfig.Debug` mencetak alasan penolakan).
+- Dialog Taufik: tes di Studio (dekati NPC_Taufik, tekan prompt "Bicara": Greeting 3 pilihan; semua cabang berakhir; pilih "Baik, Mas. Saya carikan." -> Accepted; Output mencetak SATU warning `CP2.AcceptQuest belum punya handler`; menjauh = dialog tertutup; 2 pemain terpisah).
 - Reward Air/Ciki: tes di Studio (selesaikan quest CP1 -> Tool "Air" dan "Ciki" muncul di Backpack tanpa "xN"; equip + tekan = +5, tekan lagi <5 dtk tidak menambah; mati/respawn = Tool kembali; 2 pemain terpisah). Cek Output bila Tool tidak muncul (`InventoryService` mencetak Tool yang ada di folder template).
 - Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
 
 ## Next task
+- Quest System + Notification untuk CP2 (Taufik: kayu dan tali): jawab Q9 dulu (jumlah, asal item, apakah menggantikan ranting + batu), lalu `ItemConfig` Kayu/Tali, `ResourceConfig`, `QuestConfig` CP2 (Actions `CP2.AcceptQuest`/`CP2.TurnIn`, Entry QuestActive/QuestReady/QuestAfter), gate CP2.
 - Tes Studio notifikasi (lihat CHANGELOG 2026-10-20 b) dan reward Air/Ciki (lihat CHANGELOG 2026-10-20 c), lalu gate CP1. Konfirmasi Q6 (Tool Air/Ciki memang tak habis dipakai?). Indikator cooldown Tool dan toast reward bisa menyusul di Notification System.
 - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
 
 ## Dependencies / blockers
+0b. `NPC_Taufik` di Workspace (Model/Part, nama unik, berisi ProximityPrompt). Tanpa itu dialog Taufik tidak terikat (warning di Output setelah 10 detik).
 0a. Tool `Air` dan `Ciki` (ber-`Handle`) di `ServerStorage.QuestModels` (atau ubah `ItemConfig.Items.Air/Ciki.TemplatePath`). Tanpa itu quest CP1 TIDAK dimulai (warning di Output).
 0. Verifikasi di Studio: kondisi `ServerStorage.QuestModels`: `ItemConfig...TemplatePath` kini `{QuestModels, Ranting}` = path yang sama dengan `ResourceConfig...TemplatePath`; berarti `QuestModels.Ranting` harus Tool (dengan Handle) yang dipakai untuk inventory sekaligus (diubah jadi Model untuk tampilan dunia), ATAU kembalikan ItemConfig ke `Ranting(Tool)` bila Tool dan model dunia adalah dua objek berbeda, `NPC_Warung` (nama unik, punya ProximityPrompt), `Workspace.QuestObject.RantingBC_Spawner` berisi 20 BasePart `RantingSpawner_N`, `ServerStorage.QuestModels.Ranting`; jawab Q6 dan Q7.
 1. (Teratasi) `default.project.json` dan `src/` sudah ada.

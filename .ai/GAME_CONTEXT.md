@@ -86,6 +86,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
 `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
 - Penjaga Hutan minta 1 ranting + 1 batu. Interaksi batu kedua nonaktif jika Stone = 1.
 - Selesai → gate CP2 terbuka (akses CP3).
+- **Instruksi terbaru (2026-10-23, DEC-019):** penjaga jalan CP2 adalah **Taufik** (`NPC_Taufik`) dan ia membutuhkan **kayu dan tali** (bukan ranting + batu). DIALOGNYA sudah ada (`DialogueConfig.Npcs.Taufik`); quest, item Kayu/Tali, spawn, notifikasi, dan gate CP2 BELUM ada. Requirement ranting + batu di atas (GDD) tidak dihapus sampai pengguna menjawab Q9.
 
 ### CP3 — Hutan Gelap
 `CP3_CRAFT_TORCH → CP3_COMPLETE`
@@ -154,6 +155,7 @@ Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, Branch
 - `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_1…` (Part titik spawn ranting; 20 titik).
 - `ServerStorage.QuestModels.Ranting` (template model ranting).
 - Part titik spawn menerima child `ProximityPrompt` bernama `ResourcePrompt` (dibuat server saat quest pertama kali diterima; tidak ada Part/aset baru).
+- `NPC_Taufik` (Model NPC penjaga jalan CP2, di Workspace; harus berisi ProximityPrompt; nama harus unik). Dipakai `DialogueService` (dicari rekursif berdasarkan nama). Belum diverifikasi di Studio.
 - `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool ranting untuk Backpack; harus Tool dengan `Handle`). Nama dan lokasi dari pengguna, belum diverifikasi.
 
 ## 12. Tags & Attributes
@@ -209,3 +211,4 @@ Notifikasi quest (toast + tujuan n/10) juga TIDAK memakai Remote: client membaca
 - **Q6 Tool makanan/minuman (reward CP1):** SEBAGIAN TERJAWAB (DEC-018): 1 Air dan 1 Ciki, +5% per pakai, cooldown 5 dtk, tidak habis dipakai (diasumsikan dari "cooldown 5 detik"). Masih perlu konfirmasi: apakah Tool memang boleh dipakai tanpa batas, atau sekali pakai/berkurang.
 - **Q7 MaxStack ranting:** batas tumpukan ranting per pemain? Sementara 20 (CP1 butuh 10; batu maks 1 menurut GDD). Atur di `ItemConfig.Items.Ranting.MaxStack`.
 - **Q8 Inventory saat mati:** item tetap atau hilang saat pemain mati/respawn? Sementara tetap (DEC-013).
+- **Q9 CP2 kayu dan tali:** (a) apakah Kayu dan Tali MENGGANTIKAN ranting + batu di CP2, atau Kayu = ranting yang diganti nama? (b) berapa jumlah tiap item? (c) dari mana didapat (titik spawn mana, Tool atau model dunia)? (d) apa isi `NPC_Taufik` pada Workspace (ProximityPrompt sudah ada)? Dialog sengaja tidak menyebut angka.

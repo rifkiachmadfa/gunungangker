@@ -1,0 +1,190 @@
+diff --git a/.ai/CHANGELOG.md b/.ai/CHANGELOG.md
+index 66a4368..7de73d6 100644
+--- a/.ai/CHANGELOG.md
++++ b/.ai/CHANGELOG.md
+@@ -60,3 +60,9 @@
+ - Sistem terdampak: Quest, Inventory, Survival/Consumable, Dialogue (teks saja). Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
+ - File/skrip: `src/shared/ItemConfig.luau`, `src/shared/QuestConfig.luau`, `src/shared/SurvivalConfig.luau`, `src/shared/DialogueConfig.luau`, `src/server/Services/InventoryService.luau`, `src/server/Services/ConsumableService.luau`, `src/server/Services/QuestService.luau`, `.ai/*`.
+ - Hasil test: `luau-compile` OK untuk 7 file; `luau-analyze` tanpa error baru (satu TypeError di `QuestService` sudah ada di HEAD, akibat tipe Roblox tidak tersedia). Uji mock (Roblox di-mock, modul asli Inventory/Consumable/Survival/Quest; Dialogue dan Resource di-stub): 51 uji lulus; 13 mutasi sengaja (cooldown, cek equip, stat penuh, kepemilikan, cek hidup, cooldown dibagi, jumlah tambah, precheck TurnIn/Accept, reward tidak diberikan, urutan reward vs event Completed, ShowCount, hook OnToolCreated) semuanya tertangkap; skenario config reward salah lulus. Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio (Tool asli, Handle, equip/Activated nyata, mobile), uji multiplayer nyata, `rojo build`.
++
++## 2026-10-23 — Dialog NPC_Taufik (CP2: penjaga jalan, butuh kayu dan tali)
++- Perubahan: data dialog `Taufik` di `DialogueConfig` (11 node: 7 terjangkau dari Start, 4 node state quest menunggu Quest System). Action `CP2.AcceptQuest`/`CP2.TurnIn` dipesan tanpa handler.
++- Sistem terdampak: Dialogue (data saja). Tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan service/client.
++- File/skrip: `src/shared/DialogueConfig.luau`, `.ai/*`.
++- Hasil test: `luau-compile` OK. Uji mock memakai `DialogueService`/`Remotes`/`Interaction` ASLI (Roblox di-mock; `DialogueConfig` asli): 98 uji lulus (config, panjang teks, tanpa variabel, penelusuran semua jalur pilihan sampai akhir lewat layanan, Action dan EntryResolver, jarak, indeks tidak valid, sessionId salah, regresi Ibu Warung) + skenario NPC muncul belakangan lulus. 11 mutasi sengaja (Next rusak, ModelName salah, teks > 400, variabel, Action hilang, item salah, Start hilang, siklus, node akhir, cek jarak, validasi indeks) semuanya terdeteksi (D11 lewat error runtime, bukan assert). Mock bukan Roblox sungguhan. TIDAK dilakukan: uji Studio (UI dialog, prompt NPC_Taufik asli, mobile), uji multiplayer nyata, `rojo build`.
+diff --git a/.ai/CURRENT_STATE.md b/.ai/CURRENT_STATE.md
+index f4ab115..6833d6f 100644
+--- a/.ai/CURRENT_STATE.md
++++ b/.ai/CURRENT_STATE.md
+@@ -1,6 +1,6 @@
+ # CURRENT STATE
+ 
+-Last updated: 2026-10-20
++Last updated: 2026-10-23
+ Current phase: PHASE 1/2 (Core + CP1) — Dialogue System selesai ditulis, menunggu tes Studio
+ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) belum di-commit (diserahkan sebagai patch)
+ 
+@@ -11,6 +11,7 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
+ - Quest System CP1 (ranting): TERIMPLEMENTASI, BELUM TERUJI di Studio. `ResourceService` + `QuestService` + `ResourceRenderer`. Butuh `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_N` dan `ServerStorage.QuestModels.Ranting`. Reward belum ada.
+ - Pengambilan ranting via ProximityPrompt TAHAN 12 dtk (`ResourceService` mode `Prompt` + `ResourceRenderer`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Prompt `ResourcePrompt` dibuat server di tiap Part titik spawn; durasi tahan diukur server (HoldBegan→Triggered). Lulus 104/101 uji mock (dua skenario template). Prompt hanya dibuat saat quest pertama kali diterima.
+ - Reward CP1 (Tool Air + Ciki, DEC-018): TERIMPLEMENTASI, BELUM TERUJI di Studio. `QuestService.TurnIn` memberi 1 Air + 1 Ciki; equip + tekan = +5% Thirst/Hunger, cooldown 5 dtk per item, divalidasi server (`ConsumableService`). Butuh Tool template ber-`Handle` di `ServerStorage.QuestModels.Air` dan `.Ciki` (path belum diverifikasi). Lulus 51 uji mock + 13 mutasi (lihat CHANGELOG).
++- Dialog NPC_Taufik (CP2, DEC-019): DATA dialog selesai, BELUM TERUJI di Studio. Butuh `NPC_Taufik` (nama unik, ProximityPrompt) di Workspace. Belum ada quest, item Kayu/Tali, notifikasi, atau gate CP2; Action `CP2.AcceptQuest`/`CP2.TurnIn` dilewati (warning sekali) sampai Quest System CP2 ada. Lulus 98 uji mock + 11 mutasi (lihat CHANGELOG 2026-10-23).
+ - Inventory stackable (`InventoryService` + `ItemConfig`): TERIMPLEMENTASI, BELUM TERUJI di Studio. Ranting yang terambil (`ResourceConfig...ItemId`) masuk sebagai SATU Tool `Ranting xN` di Backpack; `QuestService.TurnIn` mengonsumsi `Target` item. Butuh Tool template di `ServerStorage.QuestModels` (path di `ItemConfig`, Tool dengan `Handle`). Lulus 50 uji mock di luar Roblox (lihat CHANGELOG).
+ 
+ - Notification System quest CP1 (toast + kartu tujuan n/10, `NotificationView`/`NotificationController`/`QuestNotify`): TERIMPLEMENTASI (2026-10-20), BELUM TERUJI di Studio. Client-only, membaca Attribute `Quest_<id>_State/Progress`; tanpa Remote baru.
+@@ -35,14 +36,17 @@ Branch: main (HEAD a0f7a22 "fix"); Inventory stackable (ranting sebagai Tool) be
+ - Dialogue + Quest CP1: tes di Studio (lihat langkah di respons sesi 2026-10-18), 1 pemain lalu 2+ pemain.
+ - Inventory ranting: tes di Studio (Tool terbentuk, satu slot, respawn, serah-terima mengonsumsi), 1 lalu 2+ pemain.
+ - Prompt ranting: tes di Studio (prompt muncul hanya di titik aktif, tahan 12 dtk, lepas dini = batal, 2 pemain). Bila prompt tidak pernah selesai, cek Output (`ResourceConfig.Debug` mencetak alasan penolakan).
++- Dialog Taufik: tes di Studio (dekati NPC_Taufik, tekan prompt "Bicara": Greeting 3 pilihan; semua cabang berakhir; pilih "Baik, Mas. Saya carikan." -> Accepted; Output mencetak SATU warning `CP2.AcceptQuest belum punya handler`; menjauh = dialog tertutup; 2 pemain terpisah).
+ - Reward Air/Ciki: tes di Studio (selesaikan quest CP1 -> Tool "Air" dan "Ciki" muncul di Backpack tanpa "xN"; equip + tekan = +5, tekan lagi <5 dtk tidak menambah; mati/respawn = Tool kembali; 2 pemain terpisah). Cek Output bila Tool tidak muncul (`InventoryService` mencetak Tool yang ada di folder template).
+ - Phase 2: verifikasi Hunger/Thirst + konsumsi di Studio (1 pemain, mobile emulator, 2+ pemain). Pengguna perlu memasang tag Food/Drink pada objek.
+ 
+ ## Next task
++- Quest System + Notification untuk CP2 (Taufik: kayu dan tali): jawab Q9 dulu (jumlah, asal item, apakah menggantikan ranting + batu), lalu `ItemConfig` Kayu/Tali, `ResourceConfig`, `QuestConfig` CP2 (Actions `CP2.AcceptQuest`/`CP2.TurnIn`, Entry QuestActive/QuestReady/QuestAfter), gate CP2.
+ - Tes Studio notifikasi (lihat CHANGELOG 2026-10-20 b) dan reward Air/Ciki (lihat CHANGELOG 2026-10-20 c), lalu gate CP1. Konfirmasi Q6 (Tool Air/Ciki memang tak habis dipakai?). Indikator cooldown Tool dan toast reward bisa menyusul di Notification System.
+ - Setelah verifikasi: lanjut Phase 1/2 sesuai prioritas pengguna (interaksi + inventory, lalu Shop CP1).
+ 
+ ## Dependencies / blockers
++0b. `NPC_Taufik` di Workspace (Model/Part, nama unik, berisi ProximityPrompt). Tanpa itu dialog Taufik tidak terikat (warning di Output setelah 10 detik).
+ 0a. Tool `Air` dan `Ciki` (ber-`Handle`) di `ServerStorage.QuestModels` (atau ubah `ItemConfig.Items.Air/Ciki.TemplatePath`). Tanpa itu quest CP1 TIDAK dimulai (warning di Output).
+ 0. Verifikasi di Studio: kondisi `ServerStorage.QuestModels`: `ItemConfig...TemplatePath` kini `{QuestModels, Ranting}` = path yang sama dengan `ResourceConfig...TemplatePath`; berarti `QuestModels.Ranting` harus Tool (dengan Handle) yang dipakai untuk inventory sekaligus (diubah jadi Model untuk tampilan dunia), ATAU kembalikan ItemConfig ke `Ranting(Tool)` bila Tool dan model dunia adalah dua objek berbeda, `NPC_Warung` (nama unik, punya ProximityPrompt), `Workspace.QuestObject.RantingBC_Spawner` berisi 20 BasePart `RantingSpawner_N`, `ServerStorage.QuestModels.Ranting`; jawab Q6 dan Q7.
+ 1. (Teratasi) `default.project.json` dan `src/` sudah ada.
+diff --git a/.ai/DECISIONS.md b/.ai/DECISIONS.md
+index 761df22..f873e9b 100644
+--- a/.ai/DECISIONS.md
++++ b/.ai/DECISIONS.md
+@@ -141,3 +141,16 @@
+ - Asumsi (perlu konfirmasi, Q6): Tool TIDAK habis dipakai (disimpulkan dari adanya cooldown 5 dtk); jumlah 1 Air dan 1 Ciki. Mengikuti instruksi terbaru, bukan GDD (+40 per item lewat shop). Hunger/Thirst +5 = konsisten dengan nilai awal 50 dan decay -1/10 dtk, jadi satu pakai setara 50 dtk decay; bila terasa terlalu kuat/lemah, ubah `Amount`/`Cooldown` di `SurvivalConfig` tanpa menyentuh logika.
+ - Alternatif ditolak: Tool dibuat terpisah dengan Script sendiri (logika di klien/Tool, tidak server-authoritative dan duplikasi sistem inventory); sekali pakai dengan stack (bertentangan dengan cooldown yang diminta).
+ - Risiko: `Tool.Activated` di server bergantung pada Tool ber-Handle yang di-equip (`RequiresHandle`); bila Tool buatan pengguna punya Script/LocalScript yang juga mengubah stat, itu akan di luar kendali sistem ini. Belum ada notifikasi/indikator cooldown di HUD; pemain yang menekan saat cooldown tidak mendapat umpan balik.
++
++## DEC-019 — Dialog NPC_Taufik (CP2): penjaga jalan yang butuh kayu dan tali; dialog dulu, quest menyusul
++- Tanggal: 2026-10-23
++- Konteks: instruksi pengguna: NPC_Taufik di CP2 bertugas menjaga jalan dan membutuhkan kayu dan tali; Quest System dan Notification System untuk NPC ini dikerjakan setelahnya, fokus sekarang hanya dialog. GDD CP2 menyebut "Penjaga Hutan" meminta 1 ranting + 1 batu (konflik mekanik).
++- Keputusan: ikuti instruksi terbaru. `DialogueConfig.Npcs.Taufik` (`ModelName = "NPC_Taufik"`, `DisplayName = "Taufik"`) memakai sistem dialog yang sudah ada (DEC-009); tidak ada kode service baru, tidak ada Remote baru, tidak ada perubahan mapping Rojo, tidak ada perubahan client.
++  - Alur: `Greeting` (3 pilihan) → `Warning` (petunjuk horor, opsional) → `AskMaterials` (butuh kayu dan tali untuk memperbaiki palang jalan; setelah itu jalan dibuka) → `Hint` (cari di sekitar hutan bambu) → `Accepted` / `Later`; `Farewell` bila hanya lewat.
++  - Tidak ada angka dan tidak ada variabel `{...}` di teks (jumlah kayu/tali belum ditentukan, Q9). Variabel yang tidak terdaftar akan tampil mentah di layar.
++  - Node `QuestActive`, `QuestReady`, `QuestDone`, `QuestAfter` sudah ditulis dengan pola nama CP1, tetapi TIDAK terjangkau dari `Start`; QuestService CP2 nanti memilihnya lewat `RegisterEntryResolver("Taufik", ...)` dan `QuestConfig...Entry`.
++  - Nama Action `CP2.AcceptQuest` (pada dua pilihan terima) dan `CP2.TurnIn` (pilihan serah di `QuestReady`) dipesan sekarang. Tanpa handler, `DialogueService` melewati Action dan mencetak warning SEKALI per nama; dialog tetap jalan. Nama ini adalah kontrak yang akan dipakai `QuestConfig.Quests.<CP2>.Actions`; ubah bersama bila diperlukan.
++- Alasan palang: cerita minimal agar kayu dan tali masuk akal dan terkait gate CP2 (GDD: selesai → gate terbuka). Teks bersifat konten, bebas diubah di config tanpa menyentuh logika.
++- Asumsi (perlu konfirmasi, Q9): Kayu dan Tali menggantikan requirement CP2 GDD; panggilan "Mas"/"Dik" (pemain memanggil "Mas", Taufik memanggil "Dik"); lore "palang jalan rusak" adalah karangan untuk dialog.
++- Dampak: GDD CP2 diberi anotasi, tidak ditimpa. Item `Kayu`/`Tali`, spawn, quest, notifikasi, dan gate CP2 belum ada; jangan dianggap selesai.
++- Risiko: `NPC_Taufik` harus ada di Workspace dengan nama unik (dicari rekursif); bila tidak ada, dialog tidak terikat dan Output mencetak warning setelah 10 detik. Bila `NPC_Taufik` tidak punya ProximityPrompt, server membuat satu (tanpa membuat Part).
+diff --git a/.ai/GAME_CONTEXT.md b/.ai/GAME_CONTEXT.md
+index 2aa3c08..f5f3834 100644
+--- a/.ai/GAME_CONTEXT.md
++++ b/.ai/GAME_CONTEXT.md
+@@ -86,6 +86,7 @@ Alur: shuffle spawn point → pilih N → spawn. Resource diambil → hilang →
+ `CP2_SEARCH_BRANCH → CP2_SEARCH_STONE → CP2_COMPLETE`
+ - Penjaga Hutan minta 1 ranting + 1 batu. Interaksi batu kedua nonaktif jika Stone = 1.
+ - Selesai → gate CP2 terbuka (akses CP3).
++- **Instruksi terbaru (2026-10-23, DEC-019):** penjaga jalan CP2 adalah **Taufik** (`NPC_Taufik`) dan ia membutuhkan **kayu dan tali** (bukan ranting + batu). DIALOGNYA sudah ada (`DialogueConfig.Npcs.Taufik`); quest, item Kayu/Tali, spawn, notifikasi, dan gate CP2 BELUM ada. Requirement ranting + batu di atas (GDD) tidak dihapus sampai pengguna menjawab Q9.
+ 
+ ### CP3 — Hutan Gelap
+ `CP3_CRAFT_TORCH → CP3_COMPLETE`
+@@ -154,6 +155,7 @@ Nama Part/trigger acuan GDD §12.2 (contoh: CP1_Spawn, CP1_NPC, CP1_Gate, Branch
+ - `Workspace.QuestObject.RantingBC_Spawner.RantingSpawner_1…` (Part titik spawn ranting; 20 titik).
+ - `ServerStorage.QuestModels.Ranting` (template model ranting).
+ - Part titik spawn menerima child `ProximityPrompt` bernama `ResourcePrompt` (dibuat server saat quest pertama kali diterima; tidak ada Part/aset baru).
++- `NPC_Taufik` (Model NPC penjaga jalan CP2, di Workspace; harus berisi ProximityPrompt; nama harus unik). Dipakai `DialogueService` (dicari rekursif berdasarkan nama). Belum diverifikasi di Studio.
+ - `ServerStorage.QuestModels["Ranting(Tool)"]` (Tool ranting untuk Backpack; harus Tool dengan `Handle`). Nama dan lokasi dari pengguna, belum diverifikasi.
+ 
+ ## 12. Tags & Attributes
+@@ -209,3 +211,4 @@ Notifikasi quest (toast + tujuan n/10) juga TIDAK memakai Remote: client membaca
+ - **Q6 Tool makanan/minuman (reward CP1):** SEBAGIAN TERJAWAB (DEC-018): 1 Air dan 1 Ciki, +5% per pakai, cooldown 5 dtk, tidak habis dipakai (diasumsikan dari "cooldown 5 detik"). Masih perlu konfirmasi: apakah Tool memang boleh dipakai tanpa batas, atau sekali pakai/berkurang.
+ - **Q7 MaxStack ranting:** batas tumpukan ranting per pemain? Sementara 20 (CP1 butuh 10; batu maks 1 menurut GDD). Atur di `ItemConfig.Items.Ranting.MaxStack`.
+ - **Q8 Inventory saat mati:** item tetap atau hilang saat pemain mati/respawn? Sementara tetap (DEC-013).
++- **Q9 CP2 kayu dan tali:** (a) apakah Kayu dan Tali MENGGANTIKAN ranting + batu di CP2, atau Kayu = ranting yang diganti nama? (b) berapa jumlah tiap item? (c) dari mana didapat (titik spawn mana, Tool atau model dunia)? (d) apa isi `NPC_Taufik` pada Workspace (ProximityPrompt sudah ada)? Dialog sengaja tidak menyebut angka.
+diff --git a/.ai/TASKS.md b/.ai/TASKS.md
+index 6c7bec8..1588bfa 100644
+--- a/.ai/TASKS.md
++++ b/.ai/TASKS.md
+@@ -1,6 +1,7 @@
+ # TASKS
+ 
+ ## In progress
++- [ ] PHASE 3 (sebagian) — Dialog NPC_Taufik (CP2): data selesai & lulus uji mock; menunggu tes Studio. Quest System + Notification CP2 (kayu dan tali) BELUM dikerjakan, menunggu Q9
+ - [ ] PHASE 1 (sebagian) — Notification System quest CP1: kode selesai; menunggu tes Studio (toast, n/10, pesan kembali ke NPC, hilang setelah serah, 2 pemain)
+ - [ ] PHASE 2 (sebagian) — Reward CP1 Tool Air + Ciki (+5%, cooldown 5 dtk): kode selesai & lulus uji mock; menunggu tes Studio (template Tool, equip/Activated, respawn, 2 pemain)
+ - [ ] PHASE 1 (sebagian) — Inventory stackable + ranting sebagai Tool: kode selesai & lulus uji mock; menunggu tes Studio (template Tool, respawn, serah-terima, 2 pemain)
+diff --git a/src/shared/DialogueConfig.luau b/src/shared/DialogueConfig.luau
+index c848b30..7e14519 100644
+--- a/src/shared/DialogueConfig.luau
++++ b/src/shared/DialogueConfig.luau
+@@ -147,6 +147,75 @@ local Config: Config = {
+ 				},
+ 			},
+ 		},
++
++		-- CP2 — Taufik, penjaga jalan di Hutan Bambu. Butuh KAYU dan TALI untuk memperbaiki palang jalan,
++		-- lalu membuka jalan ke atas. Tidak ada angka/variabel jumlah di teks (jumlah belum ditentukan).
++		-- Dialog BELUM terhubung ke Quest System: Action di bawah dilewati (warning sekali) sampai ada
++		-- handler. Node Quest* tidak tercapai dari Start; dipilih QuestService nanti lewat EntryResolver
++		-- (nama node mengikuti pola CP1: QuestActive / QuestReady / QuestAfter).
++		Taufik = {
++			DisplayName = "Taufik",
++			ModelName = "NPC_Taufik",
++			Start = "Greeting",
++			Nodes = {
++				Greeting = {
++					Text = "Berhenti dulu, Dik. Jalan ke atas lewat sini, dan saya yang jaga. Hutan bambu ini bukan tempat buat jalan sembarangan.",
++					Choices = {
++						{ Text = "Saya mau naik ke atas, Mas.", Next = "AskMaterials" },
++						{ Text = "Memangnya ada apa di atas?", Next = "Warning" },
++						{ Text = "Cuma lihat-lihat, Mas.", Next = "Farewell" },
++					},
++				},
++				Warning = {
++					Text = "Namanya juga gunung, Dik. Makin ke atas makin sepi dan makin gelap. Kalau ada yang bisik-bisik di rumpun bambu, itu bukan angin. Jangan dijawab kalau ada yang manggil nama kamu.",
++					Choices = {
++						{ Text = "Saya tetap mau naik.", Next = "AskMaterials" },
++						{ Text = "Saya pikir-pikir dulu, Mas.", Next = "Later" },
++					},
++				},
++				AskMaterials = {
++					Text = "Boleh, tapi palang jalan di pos ini rusak. Saya tidak bisa jaga jalan dengan palang begitu. Bantu saya cari kayu dan tali buat memperbaikinya. Setelah itu jalannya saya buka.",
++					Choices = {
++						-- "CP2.AcceptQuest" belum punya handler (menunggu Quest System CP2).
++						{ Text = "Baik, Mas. Saya carikan.", Next = "Accepted", Action = "CP2.AcceptQuest" },
++						{ Text = "Kayu dan tali? Cari di mana, Mas?", Next = "Hint" },
++						{ Text = "Nanti saja, Mas.", Next = "Later" },
++					},
++				},
++				Hint = {
++					Text = "Cari di sekitar hutan bambu ini saja. Pelan-pelan, Dik, dan jangan jauh-jauh dari jalan setapak. Hutan ini cepat gelap.",
++					Choices = {
++						{ Text = "Baik, Mas. Saya carikan.", Next = "Accepted", Action = "CP2.AcceptQuest" },
++						{ Text = "Nanti saja, Mas.", Next = "Later" },
++					},
++				},
++				Accepted = {
++					Text = "Terima kasih, Dik. Saya tunggu di sini. Jangan lama-lama ya.",
++				},
++				Later = {
++					Text = "Ya sudah. Palangnya masih rusak, jadi jalan belum bisa saya buka. Kalau sudah siap, balik lagi ke saya.",
++				},
++				QuestActive = {
++					Text = "Kayu dan talinya belum cukup, Dik. Cari lagi di sekitar hutan bambu ini. Saya tunggu di sini.",
++				},
++				QuestReady = {
++					Text = "Nah, kayu dan talinya sudah cukup! Sini, serahkan ke saya, biar palangnya saya betulkan.",
++					Choices = {
++						-- "CP2.TurnIn" belum punya handler (menunggu Quest System CP2).
++						{ Text = "Ini, Mas.", Next = "QuestDone", Action = "CP2.TurnIn" },
++					},
++				},
++				QuestDone = {
++					Text = "Terima kasih, Dik. Palangnya sudah kuat lagi, jalan ke atas saya buka. Hati-hati, di atas sana lebih gelap dari di sini.",
++				},
++				QuestAfter = {
++					Text = "Jalannya sudah terbuka, Dik. Terus naik, dan jangan menoleh kalau ada yang manggil dari belakang.",
++				},
++				Farewell = {
++					Text = "Ya sudah. Hati-hati, Dik. Jangan keluar dari jalan setapak.",
++				},
++			},
++		},
+ 	},
+ }
+ 
